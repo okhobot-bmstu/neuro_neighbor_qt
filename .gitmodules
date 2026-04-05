@@ -1,0 +1,3 @@
+[submodule "Ai_nn"]
+	path = Ai_nn
+	url = https://github.com/okhobot/Ai_nn.git
