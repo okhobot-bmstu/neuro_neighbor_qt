@@ -1,3 +1,3 @@
-[submodule "Ai_nn"]
-	path = Ai_nn
-	url = https://github.com/okhobot/Ai_nn.git
+[submodule "ai_nn"]
+	path = ai_nn
+	url = https://github.com/okhobot/ai_nn.git
