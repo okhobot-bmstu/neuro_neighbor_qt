@@ -1,0 +1,56 @@
+/* Фон главного окна */
+QMainWindow {
+    background-color: #2b2b2b;
+}
+
+/* Кнопка микрофона (выключена) */
+#micButton {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #e74c3c, stop:1 #c0392b);
+    border: none;
+    border-radius: 80px;
+    padding: 20px;
+}
+#micButton:hover {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ff5e50, stop:1 #e74c3c);
+}
+#micButton:pressed {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #c0392b, stop:1 #a93226);
+}
+
+/* Кнопка микрофона (активна) */
+#micButtonActive {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2ecc71, stop:1 #27ae60);
+    border: 4px solid #2ecc71;
+    border-radius: 80px;
+    padding: 20px;
+}
+#micButtonActive:hover {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #3dd17a, stop:1 #2ecc71);
+}
+#micButtonActive:pressed {
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #27ae60, stop:1 #219a52);
+}
+
+/* Кнопка настроек */
+#settingsButton {
+    background-color: #555555;
+    border: 2px solid #666666;
+    border-radius: 25px;
+}
+#settingsButton:hover {
+    background-color: #666666;
+    border-color: #888888;
+}
+#settingsButton:pressed {
+    background-color: #444444;
+}
+
+/* Всплывающая подсказка */
+QToolTip {
+    background-color: #3a3a3a;
+    color: #ffffff;
+    border: 1px solid #555555;
+    border-radius: 4px;
+    padding: 6px;
+    font-size: 13px;
+}
