@@ -4,12 +4,15 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, ai_engine=None):
         super().__init__()
         self.setWindowTitle("Neuro_neighbor")
         self.showMaximized()
+
         self.is_mic_active = False
         self.assets = {}
+        self.ai_engine = ai_engine  # Принимает готовый движок из main.py
+
         self.init_ui()
 
     def init_ui(self):
@@ -28,7 +31,7 @@ class MainWindow(QMainWindow):
         self.settings_btn = QPushButton()
         self.settings_btn.setObjectName("settingsButton")
         self.settings_btn.setFixedSize(50, 50)
-        self.settings_btn.setToolTip("Настройки")
+        self.settings_btn.setToolTip("настройки")
         self.settings_btn.clicked.connect(self.open_settings)
         self.settings_btn.setIcon(self.make_icon('settings', "#999999"))
         self.settings_btn.setIconSize(self.settings_btn.size() * 0.6)
@@ -123,7 +126,27 @@ class MainWindow(QMainWindow):
         self.mic_btn.style().unpolish(self.mic_btn)
         self.mic_btn.style().polish(self.mic_btn)
         self.update_mic_icon()
-        print("🎤 Микрофон", "ВКЛ" if self.is_mic_active else "ВЫКЛ")
+
+        if self.is_mic_active:
+            print("🎤 Микрофон ВКЛЮЧЁН")
+            self._call_ai('start_recognition')
+        else:
+            print("🔇 Микрофон ВЫКЛЮЧЕН")
+            self._call_ai('stop_recognition')
+
+    def _call_ai(self, method_name):
+        """Безопасный вызов методов AI-движка"""
+        if not self.ai_engine:
+            print("⚠️ AI-движок не инициализирован")
+            return
+
+        if hasattr(self.ai_engine, method_name):
+            try:
+                getattr(self.ai_engine, method_name)()
+            except Exception as e:
+                print(f"⚠️ Ошибка AI.{method_name}: {e}")
+        else:
+            print(f"⚠️ Метод {method_name} не найден в AI-модуле")
 
     def open_settings(self):
         print("⚙️ Настройки")
