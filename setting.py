@@ -6,6 +6,34 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, Q
 base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
 
+t1 = test_config = {
+    "cache_dir": base_directory,
+    "hf_token": "__your_token__",
+    "offline": False,
+    "model": {
+        "repo_id": "__model_repo__",
+        "filename": "__model_file__",
+        "init_prompt_path": "config/init_prompt.txt",
+        "chat_history_path": "config/chat_history.json",
+        "init_prompt_role": "user",
+        "max_console_op_depth": 1,
+        "load_embeddings_count": 2,
+        "chat_size": 4,
+        "use_gpu": False,
+    },
+    "tts": {
+        "pitch_shift": 1,
+        "speaker_name": "baya",
+        "model_name": "v5_1_ru",
+    },
+    "stt": {
+        "model": "base",
+        "device": "cpu",
+        "use_nr": True,
+        "silence_duration": 1,
+        "micro_index": -1,
+    },
+}
 test_config = {
     "cache_dir": base_directory,
     "hf_token": "__your_token__",
@@ -140,9 +168,10 @@ class ConfigEditor(QMainWindow):
         self.widgets[key] = w
         return w
     
+
     def save(self):
         try:
-            self.config_data = "new4"
+            self.config_data = self._collect()
 
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -154,22 +183,25 @@ class ConfigEditor(QMainWindow):
         except Exception as e:
             print(f"Ошибка сохранения: {e}")
 
+
     def load(self):
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 self.config_data = json.load(f)
 
             print("Загружено")
-            print(self.config_data)
+            self._apply(self.config_data)
 
         except Exception as e:
             print(f"Ошибка загрузки: {e}")
+
 
     def _browse_dir(self):
         path = QFileDialog.getExistingDirectory(self, "Выберите директорию")
         if path:
             self.widgets["cache_dir"].setText(path) 
     
+
     def _get(self, cfg, path):
         for part in path.split("."):
             if not isinstance(cfg, dict) or part not in cfg:
@@ -177,6 +209,7 @@ class ConfigEditor(QMainWindow):
             cfg = cfg[part]
         return cfg
     
+
     def _apply(self, cfg):
         for key, w in self.widgets.items():
             val = self._get(cfg, key)
@@ -195,9 +228,47 @@ class ConfigEditor(QMainWindow):
             else:
                 w.setText(str(val))
 
+
     def reset(self):
-        self.config_data = test_config 
+        self.config_data = t1 
         self._apply(self.config_data)
+
+
+    def _set(self, cfg, path, value):
+        parts = path.split(".")
+        for part in parts[:-1]:
+            cfg = cfg.setdefault(part, {})
+        cfg[parts[-1]] = value
+
+
+    def _collect(self):
+        cfg = self.config_data
+        for key, w in self.widgets.items():
+            if isinstance(w, QCheckBox):
+                val = w.isChecked()
+            elif isinstance(w, QComboBox):
+                val = w.currentData() if key == "stt.micro_index" else w.currentText()
+            else:
+                val = w.text()
+
+            if key in {
+                "model.max_console_op_depth",
+                "model.load_embeddings_count",
+                "model.chat_size",
+                "tts.pitch_shift",
+                "stt.micro_index",
+                "stt.silence_duration",
+            }:
+                val = self._to_int(val, self._get(self.config_data, key) or 0)
+
+            self._set(cfg, key, val)
+        return cfg
+
+    def _to_int(self, text, silly=0):
+        try:
+            return int(str(text).strip())
+        except Exception:
+            return silly
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
