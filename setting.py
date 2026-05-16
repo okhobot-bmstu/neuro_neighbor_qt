@@ -138,6 +138,8 @@ class ConfigEditor(QMainWindow):
 
         if kind == "text":
             w = QLineEdit()
+            if "token" in key:
+                w.setEchoMode(QLineEdit.Password)
 
         elif kind == "check":
             w = QCheckBox()
