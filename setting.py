@@ -2,45 +2,144 @@ import sys
 import os
 import json
 
-from PySide6.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
-    QVBoxLayout,
-    QPushButton,
-)
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout
 
+base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
 
+test_config = {
+    "cache_dir": base_directory,
+    "hf_token": "__your_token__",
+    "offline": False,
+    "model": {
+        "repo_id": "__model_repo__",
+        "filename": "__model_file__",
+        "init_prompt_path": "config/init_prompt.txt",
+        "chat_history_path": "config/chat_history.json",
+        "init_prompt_role": "user",
+        "max_console_op_depth": 1,
+        "load_embeddings_count": 2,
+        "chat_size": 4,
+        "use_gpu": False,
+    },
+    "tts": {
+        "pitch_shift": 1,
+        "speaker_name": "baya",
+        "model_name": "v5_1_ru",
+    },
+    "stt": {
+        "model": "base",
+        "device": "cpu",
+        "use_nr": True,
+        "silence_duration": 1,
+        "micro_index": -1,
+    },
+}
 
-class Settings(QMainWindow):
+placeholder_name = {
+    "cache_dir": ("dir", "Кэш"),
+    "hf_token": ("text", "HF Token"),
+    "offline": ("check", "Офлайн режим"),
+
+    "model.repo_id": ("text", "Repo ID"),
+    "model.filename": ("text", "Filename"),
+    "model.init_prompt_path": ("text", "Init Prompt Path"),
+    "model.chat_history_path": ("text", "Chat History Path"),
+    "model.init_prompt_role": ("combo", "Init Prompt Role", ["user", "system", "assistant"]),
+    "model.max_console_op_depth": ("text", "Max Depth"),
+    "model.load_embeddings_count": ("text", "Embeddings"),
+    "model.chat_size": ("text", "Chat Size"),
+    "model.use_gpu": ("check", "Use GPU"),
+
+    "tts.pitch_shift": ("text", "Pitch Shift"),
+    "tts.speaker_name": ("text", "Speaker"),
+    "tts.model_name": ("text", "Model Name"),
+
+    "stt.model": ("combo", "Model", ["tiny", "base", "small", "medium", "large"]),
+    "stt.device": ("combo", "Device", ["cpu", "cuda"]),
+    "stt.use_nr": ("check", "Use NR"),
+    "stt.micro_index": ("mic", "Microphone"),
+    "stt.silence_duration": ("text", "Silence Duration"),
+}
+
+Headers = [
+    ("Основные", ["cache_dir", "hf_token", "offline"]),
+    ("Модель", [
+        "model.repo_id", "model.filename", "model.init_prompt_path",
+        "model.chat_history_path", "model.init_prompt_role",
+        "model.max_console_op_depth", "model.load_embeddings_count",
+        "model.chat_size", "model.use_gpu",
+    ]),
+    ("TTS", ["tts.pitch_shift", "tts.speaker_name", "tts.model_name"]),
+    ("STT", ["stt.model", "stt.device", "stt.use_nr", "stt.silence_duration", "stt.micro_index"]),
+]
+
+
+class ConfigEditor(QMainWindow):
     def __init__(self):
         super().__init__()
+        self.config_path = CONFIG_PATH
+        self.widgets = {}
+        self.config_data = test_config
 
-        self.setWindowTitle("Config Test")
-        self.resize(600, 450)
+        self.setWindowTitle("Конфигуратор модели")
+        self.resize(650, 720)
 
-        # self.config_data
-
-        root = QWidget()
+        root = QWidget(self)
         self.setCentralWidget(root)
+        main = QVBoxLayout(root)
 
-        layout = QVBoxLayout(root)
+        for title, keys in Headers:
+            box = QGroupBox(title)
+            form = QFormLayout(box)
+            for key in keys:
+                form.addRow(placeholder_name[key][1], self._make_widget(key))
+            main.addWidget(box)
 
-        save_btn = QPushButton("Сохранить")
-        save_btn.clicked.connect(self.save)
+        row = QHBoxLayout()
+        for text, slot in (("Сохранить", self.save), ("Загрузить", self.load)):
+            btn = QPushButton(text)
+            btn.clicked.connect(slot)
+            row.addWidget(btn)
+        main.addLayout(row)
 
-        load_btn = QPushButton("Загрузить")
-        load_btn.clicked.connect(self.load)
+    def _make_widget(self, key):
+        kind = placeholder_name[key][0]
 
-        layout.addWidget(save_btn)
-        layout.addWidget(load_btn)
+        if kind == "text":
+            w = QLineEdit()
 
-        self.setLayout(layout)
+        elif kind == "check":
+            w = QCheckBox()
+
+        elif kind == "combo":
+            _, _, items = placeholder_name[key]
+            w = QComboBox()
+            w.addItems(items)
+
+        elif kind == "mic":
+            pass
+            w = QComboBox()
+            w.addItem("Нету", -1)
+
+        elif kind == "dir":
+            edit = QLineEdit()
+            btn = QPushButton("Обзор...")
+
+            wrap = QWidget()
+            row = QHBoxLayout(wrap)
+            row.addWidget(edit)
+            row.addWidget(btn)
+
+            self.widgets[key] = edit
+            return wrap
+
+        self.widgets[key] = w
+        return w
 
     def save(self):
         try:
-            self.config_data = "new"
+            self.config_data = "new2"
 
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -66,8 +165,6 @@ class Settings(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-
-    window = Settings()
-    window.show()
-
+    win = ConfigEditor()
+    win.show()
     sys.exit(app.exec())
