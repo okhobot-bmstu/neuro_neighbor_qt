@@ -1,6 +1,7 @@
 import sys
 import os
 import json
+import sounddevice as sd
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog
 base_directory = os.getcwd()
@@ -152,7 +153,10 @@ class ConfigEditor(QMainWindow):
         elif kind == "mic":
             pass
             w = QComboBox()
-            w.addItem("Нету", -1)
+            w.addItem("Нету", -1)  
+            for idx, dev in enumerate(sd.query_devices()):
+                    if dev.get("max_input_channels", 0) > 0:
+                        w.addItem(dev["name"], idx)
 
         elif kind == "dir":
             edit = QLineEdit()
