@@ -20,7 +20,7 @@ class Settings(QMainWindow):
         self.setWindowTitle("Config Test")
         self.resize(600, 450)
 
-        self.config_data = "fafa"
+        # self.config_data
 
         root = QWidget()
         self.setCentralWidget(root)
@@ -40,26 +40,28 @@ class Settings(QMainWindow):
 
     def save(self):
         try:
+            self.config_data = "new"
+
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.config_data, f, ensure_ascii=False)
 
-            print("1!")
+            print("Сохранено")
 
-        except:
-            print("saving error")
+        except Exception as e:
+            print(f"Ошибка сохранения: {e}")
 
     def load(self):
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 self.config_data = json.load(f)
 
-            print("2!")
+            print("Загружено")
             print(self.config_data)
 
-        except:
-            print("loading error")
+        except Exception as e:
+            print(f"Ошибка загрузки: {e}")
 
 
 if __name__ == "__main__":
