@@ -2,8 +2,7 @@ import sys
 import os
 import json
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout
-
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog
 base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
 
@@ -97,10 +96,11 @@ class ConfigEditor(QMainWindow):
             main.addWidget(box)
 
         row = QHBoxLayout()
-        for text, slot in (("Сохранить", self.save), ("Загрузить", self.load)):
+        for text, slot in (("Сохранить", self.save), ("Загрузить", self.load), ("Сброс", self.reset)):
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             row.addWidget(btn)
+
         main.addLayout(row)
 
     def _make_widget(self, key):
@@ -125,6 +125,7 @@ class ConfigEditor(QMainWindow):
         elif kind == "dir":
             edit = QLineEdit()
             btn = QPushButton("Обзор...")
+            btn.clicked.connect(self._browse_dir)
 
             wrap = QWidget()
             row = QHBoxLayout(wrap)
@@ -139,7 +140,7 @@ class ConfigEditor(QMainWindow):
 
     def save(self):
         try:
-            self.config_data = "new2"
+            self.config_data = "new3"
 
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -162,6 +163,13 @@ class ConfigEditor(QMainWindow):
         except Exception as e:
             print(f"Ошибка загрузки: {e}")
 
+    def _browse_dir(self):
+        path = QFileDialog.getExistingDirectory(self, "Выберите директорию")
+        if path:
+            self.widgets["cache_dir"].setText(path) 
+    
+    def reset(self):
+        self.config_data = test_config # если что этого мало
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
