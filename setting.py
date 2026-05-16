@@ -102,6 +102,8 @@ class ConfigEditor(QMainWindow):
             row.addWidget(btn)
 
         main.addLayout(row)
+        self._apply(self.config_data)
+
 
     def _make_widget(self, key):
         kind = placeholder_name[key][0]
@@ -137,10 +139,10 @@ class ConfigEditor(QMainWindow):
 
         self.widgets[key] = w
         return w
-
+    
     def save(self):
         try:
-            self.config_data = "new3"
+            self.config_data = "new4"
 
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -168,8 +170,34 @@ class ConfigEditor(QMainWindow):
         if path:
             self.widgets["cache_dir"].setText(path) 
     
+    def _get(self, cfg, path):
+        for part in path.split("."):
+            if not isinstance(cfg, dict) or part not in cfg:
+                pass
+            cfg = cfg[part]
+        return cfg
+    
+    def _apply(self, cfg):
+        for key, w in self.widgets.items():
+            val = self._get(cfg, key)
+            if val is None:
+                continue
+
+            if isinstance(w, QCheckBox):
+                w.setChecked(bool(val))
+            elif isinstance(w, QComboBox):
+                if key == "stt.micro_index":
+                    idx = w.findData(int(val))
+                    w.setCurrentIndex(idx if idx >= 0 else 0)
+                else:
+                    idx = w.findText(str(val))
+                    w.setCurrentIndex(idx if idx >= 0 else 0)
+            else:
+                w.setText(str(val))
+
     def reset(self):
-        self.config_data = test_config # если что этого мало
+        self.config_data = test_config 
+        self._apply(self.config_data)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
