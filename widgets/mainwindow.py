@@ -1,17 +1,39 @@
+import threading
 import os
 from PyQt6.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
 
+
 class MainWindow(QMainWindow):
+    phrase_finished = pyqtSignal()
+
     def __init__(self, ai_engine=None):
         super().__init__()
         self.setWindowTitle("Neuro_neighbor")
-        self.showMaximized()
+        self.resize(480, 560)
+        self.setMinimumSize(420, 500)
 
         self.is_mic_active = False
         self.assets = {}
-        self.ai_engine = ai_engine  # Принимает готовый движок из main.py
+        self.ai_engine = ai_engine
+        self._is_calibrating = False
+        self._waiting_for_last_phrase = False
+        self.stop_timeout_timer = QTimer(self)  # ← Явный таймер вместо singleShot
+        self.stop_timeout_timer.setSingleShot(True)
+        self.stop_timeout_timer.timeout.connect(self._force_stop_if_idle)
+
+        self.phrase_finished.connect(self._on_phrase_finished)
+
+        # Патчим колбэк STT в рантайме
+        if self.ai_engine and hasattr(self.ai_engine, 'stt'):
+            original_cb = self.ai_engine.stt.call_func
+            def patched_cb(text, depth=0):
+                if self._is_calibrating:
+                    return
+                original_cb(text, depth)
+                self.phrase_finished.emit()
+            self.ai_engine.stt.call_func = patched_cb
 
         self.init_ui()
 
@@ -22,20 +44,29 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(30, 30, 30, 30)
-        layout.setSpacing(20)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
 
-        # Настройки
         top = QHBoxLayout()
         top.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        top.setSpacing(12)
+
         self.settings_btn = QPushButton()
         self.settings_btn.setObjectName("settingsButton")
         self.settings_btn.setFixedSize(50, 50)
-        self.settings_btn.setToolTip("настройки")
+        self.settings_btn.setToolTip("Настройки")
         self.settings_btn.clicked.connect(self.open_settings)
         self.settings_btn.setIcon(self.make_icon('settings', "#999999"))
         self.settings_btn.setIconSize(self.settings_btn.size() * 0.6)
         top.addWidget(self.settings_btn)
+
+        self.calibrate_btn = QPushButton("🔇 Калибровка")
+        self.calibrate_btn.setObjectName("calibrateButton")
+        self.calibrate_btn.setFixedHeight(40)
+        self.calibrate_btn.setToolTip("Записать фоновый шум (3 сек молчания)")
+        self.calibrate_btn.clicked.connect(self.start_calibration)
+        top.addWidget(self.calibrate_btn)
+
         top.addStretch()
         layout.addLayout(top)
 
@@ -121,25 +152,26 @@ class MainWindow(QMainWindow):
         self.mic_btn.setIconSize(self.mic_btn.size() * 0.65)
 
     def toggle_microphone(self):
-        self.is_mic_active = not self.is_mic_active
+        if not self.is_mic_active:
+            print("🎤 Микрофон ВКЛЮЧЁН")
+            self._waiting_for_last_phrase = False
+            self.is_mic_active = True
+            self._call_ai('start_recognition')
+        else:
+            print("🔇 Микрофон выключен. Дожидаюсь конца фразы...")
+            self.is_mic_active = False
+            self._waiting_for_last_phrase = True
+            self.stop_timeout_timer.start(6000)  # 6 сек на дослушивание + транскрибацию
+
         self.mic_btn.setObjectName("micButtonActive" if self.is_mic_active else "micButton")
         self.mic_btn.style().unpolish(self.mic_btn)
         self.mic_btn.style().polish(self.mic_btn)
         self.update_mic_icon()
 
-        if self.is_mic_active:
-            print("🎤 Микрофон ВКЛЮЧЁН")
-            self._call_ai('start_recognition')
-        else:
-            print("🔇 Микрофон ВЫКЛЮЧЕН")
-            self._call_ai('stop_recognition')
-
     def _call_ai(self, method_name):
-        """Безопасный вызов методов AI-движка"""
         if not self.ai_engine:
             print("⚠️ AI-движок не инициализирован")
             return
-
         if hasattr(self.ai_engine, method_name):
             try:
                 getattr(self.ai_engine, method_name)()
@@ -147,6 +179,53 @@ class MainWindow(QMainWindow):
                 print(f"⚠️ Ошибка AI.{method_name}: {e}")
         else:
             print(f"⚠️ Метод {method_name} не найден в AI-модуле")
+
+    def _on_phrase_finished(self):
+        if self._waiting_for_last_phrase:
+            self.stop_timeout_timer.stop()  # Отменяем таймаут, фраза пришла
+            self._waiting_for_last_phrase = False
+            print("✅ Фраза обработана, останавливаю запись...")
+            self._call_ai('stop_recognition')
+
+    def _force_stop_if_idle(self):
+        if self._waiting_for_last_phrase:
+            self._waiting_for_last_phrase = False
+            # Тихий сброс без лога: таймер просто гарантирует, что микрофон не зависнет
+            self._call_ai('stop_recognition')
+
+    def start_calibration(self):
+        if not self.ai_engine:
+            print("⚠️ AI-движок не инициализирован")
+            return
+        if not hasattr(self.ai_engine, 'calibrate'):
+            print("⚠️ Метод калибровки недоступен в данной версии AI")
+            return
+
+        self._is_calibrating = True
+        self.calibrate_btn.setEnabled(False)
+        self.calibrate_btn.setText("⏳ Слушаю шум...")
+        print("🎙️ Калибровка: пожалуйста, молчите 3 секунды...")
+
+        if self.is_mic_active:
+            self._call_ai('stop_recognition')
+
+        threading.Thread(target=self._run_calibration, daemon=True).start()
+
+    def _run_calibration(self):
+        try:
+            self.ai_engine.calibrate(duration=3)
+            print("✅ Калибровка завершена успешно")
+        except Exception as e:
+            print(f"❌ Ошибка калибровки: {e}")
+        finally:
+            QTimer.singleShot(0, self._finish_calibration)
+
+    def _finish_calibration(self):
+        self._is_calibrating = False
+        self.stop_timeout_timer.stop()  # ← Добавьте эту строку
+        self.calibrate_btn.setEnabled(True)
+        self.calibrate_btn.setText("🔇 Калибровка")
+        # ... остальной код без изменений
 
     def open_settings(self):
         print("⚙️ Настройки")

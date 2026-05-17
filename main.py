@@ -1,5 +1,6 @@
 import sys
 import os
+import json  # ← 1. ДОБАВИТЬ ЭТО
 from PyQt6.QtWidgets import QApplication
 from widgets.mainwindow import MainWindow
 
@@ -12,18 +13,24 @@ if ai_path not in sys.path:
 
 def init_ai_engine():
     try:
-        # Импортируем класс после исправления импортов в ai_nn.py
         from ai_nn import Ai_NN
 
         config_path = os.path.join(PROJECT_ROOT, "config", "config.json")
         print(f"📦 Инициализация AI (конфиг: {config_path})...")
 
-        engine = Ai_NN(path_to_config=config_path)
+        # ← 2. ВЕРНУТЬ ЧТЕНИЕ ФАЙЛА И ПЕРЕДАЧУ СЛОВАРЯ
+        with open(config_path, "r", encoding="utf-8") as f:
+            config_dict = json.load(f)
+
+        engine = Ai_NN(json_config=config_dict)
 
         if not (hasattr(engine, 'start_recognition') and hasattr(engine, 'stop_recognition')):
             print("⚠️ Методы управления микрофоном не найдены")
             return None
         return engine
+    except json.JSONDecodeError as e:
+        print(f"⚠️ Ошибка парсинга config.json: {e}")
+        return None
     except Exception as e:
         print(f"⚠️ Ошибка инициализации AI: {e}")
         return None

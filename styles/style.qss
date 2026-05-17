@@ -45,6 +45,28 @@ QMainWindow {
     background-color: #444444;
 }
 
+/* Кнопка калибровки */
+#calibrateButton {
+    background-color: #555555;
+    color: #ffffff;
+    border: 2px solid #666666;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 20px;
+}
+#calibrateButton:hover {
+    background-color: #666666;
+    border-color: #888888;
+}
+#calibrateButton:pressed {
+    background-color: #444444;
+}
+#calibrateButton:disabled {
+    background-color: #444444;
+    color: #888888;
+    border-color: #555555;
+}
+
 /* Всплывающая подсказка */
 QToolTip {
     background-color: #3a3a3a;
