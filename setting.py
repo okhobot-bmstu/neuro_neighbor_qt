@@ -2,105 +2,20 @@ import sys
 import os
 import json
 import sounddevice as sd
+from config.UI_class import Options, Headers
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog
 base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
+TEMPLATE_PATH = "config/config_template.json"
 
-t1 = test_config = {
-    "cache_dir": base_directory,
-    "hf_token": "__your_token__",
-    "offline": False,
-    "model": {
-        "repo_id": "__model_repo__",
-        "filename": "__model_file__",
-        "init_prompt_path": "config/init_prompt.txt",
-        "chat_history_path": "config/chat_history.json",
-        "init_prompt_role": "user",
-        "max_console_op_depth": 1,
-        "load_embeddings_count": 2,
-        "chat_size": 4,
-        "use_gpu": False,
-    },
-    "tts": {
-        "pitch_shift": 1,
-        "speaker_name": "baya",
-        "model_name": "v5_1_ru",
-    },
-    "stt": {
-        "model": "base",
-        "device": "cpu",
-        "use_nr": True,
-        "silence_duration": 1,
-        "micro_index": -1,
-    },
-}
-test_config = {
-    "cache_dir": base_directory,
-    "hf_token": "__your_token__",
-    "offline": False,
-    "model": {
-        "repo_id": "__model_repo__",
-        "filename": "__model_file__",
-        "init_prompt_path": "config/init_prompt.txt",
-        "chat_history_path": "config/chat_history.json",
-        "init_prompt_role": "user",
-        "max_console_op_depth": 1,
-        "load_embeddings_count": 2,
-        "chat_size": 4,
-        "use_gpu": False,
-    },
-    "tts": {
-        "pitch_shift": 1,
-        "speaker_name": "baya",
-        "model_name": "v5_1_ru",
-    },
-    "stt": {
-        "model": "base",
-        "device": "cpu",
-        "use_nr": True,
-        "silence_duration": 1,
-        "micro_index": -1,
-    },
-}
+with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
+    test_config = json.load(f)
 
-placeholder_name = {
-    "cache_dir": ("dir", "Кэш"),
-    "hf_token": ("text", "HF Token"),
-    "offline": ("check", "Офлайн режим"),
+with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
+    t1 = json.load(f)
 
-    "model.repo_id": ("text", "Repo ID"),
-    "model.filename": ("text", "Filename"),
-    "model.init_prompt_path": ("text", "Init Prompt Path"),
-    "model.chat_history_path": ("text", "Chat History Path"),
-    "model.init_prompt_role": ("combo", "Init Prompt Role", ["user", "system", "assistant"]),
-    "model.max_console_op_depth": ("text", "Max Depth"),
-    "model.load_embeddings_count": ("text", "Embeddings"),
-    "model.chat_size": ("text", "Chat Size"),
-    "model.use_gpu": ("check", "Use GPU"),
 
-    "tts.pitch_shift": ("text", "Pitch Shift"),
-    "tts.speaker_name": ("text", "Speaker"),
-    "tts.model_name": ("text", "Model Name"),
-
-    "stt.model": ("combo", "Model", ["tiny", "base", "small", "medium", "large"]),
-    "stt.device": ("combo", "Device", ["cpu", "cuda"]),
-    "stt.use_nr": ("check", "Use NR"),
-    "stt.micro_index": ("mic", "Microphone"),
-    "stt.silence_duration": ("text", "Silence Duration"),
-}
-
-Headers = [
-    ("Основные", ["cache_dir", "hf_token", "offline"]),
-    ("Модель", [
-        "model.repo_id", "model.filename", "model.init_prompt_path",
-        "model.chat_history_path", "model.init_prompt_role",
-        "model.max_console_op_depth", "model.load_embeddings_count",
-        "model.chat_size", "model.use_gpu",
-    ]),
-    ("TTS", ["tts.pitch_shift", "tts.speaker_name", "tts.model_name"]),
-    ("STT", ["stt.model", "stt.device", "stt.use_nr", "stt.silence_duration", "stt.micro_index"]),
-]
 
 
 class ConfigEditor(QMainWindow):
@@ -121,7 +36,7 @@ class ConfigEditor(QMainWindow):
             box = QGroupBox(title)
             form = QFormLayout(box)
             for key in keys:
-                form.addRow(placeholder_name[key][1], self._make_widget(key))
+                form.addRow(Options[key][1], self._make_widget(key))
             main.addWidget(box)
 
         row = QHBoxLayout()
@@ -135,7 +50,7 @@ class ConfigEditor(QMainWindow):
 
 
     def _make_widget(self, key):
-        kind = placeholder_name[key][0]
+        kind = Options[key][0]
 
         if kind == "text":
             w = QLineEdit()
@@ -146,7 +61,7 @@ class ConfigEditor(QMainWindow):
             w = QCheckBox()
 
         elif kind == "combo":
-            _, _, items = placeholder_name[key]
+            _, _, items = Options[key]
             w = QComboBox()
             w.addItems(items)
 
@@ -184,7 +99,7 @@ class ConfigEditor(QMainWindow):
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.config_data, f, ensure_ascii=False)
 
-            print("Сохранено")
+            # print("Сохранено")
 
         except Exception as e:
             print(f"Ошибка сохранения: {e}")
@@ -195,7 +110,7 @@ class ConfigEditor(QMainWindow):
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 self.config_data = json.load(f)
 
-            print("Загружено")
+            # print("Загружено")
             self._apply(self.config_data)
 
         except Exception as e:
