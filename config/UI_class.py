@@ -5,8 +5,8 @@ Options = {
 
     "model.repo_id": ("text", "Repo ID"),
     "model.filename": ("text", "Filename"),
-    "model.init_prompt_path": ("text", "Init Prompt Path"),
-    "model.chat_history_path": ("text", "Chat History Path"),
+    "model.init_prompt_path": ("dir", "Init Prompt Path"),  
+    "model.chat_history_path": ("dir", "Chat History Path"), 
     "model.init_prompt_role": ("combo", "Init Prompt Role", ["user", "system", "assistant"]),
     "model.max_console_op_depth": ("text", "Max Depth"),
     "model.load_embeddings_count": ("text", "Embeddings"),
