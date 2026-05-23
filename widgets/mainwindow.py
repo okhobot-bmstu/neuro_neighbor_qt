@@ -231,4 +231,13 @@ class MainWindow(QMainWindow):
         self.calibrate_btn.setText("🔇 Калибровка")
 
     def open_settings(self):
-        print("⚙️ Настройки")
+        # Предотвращаем открытие нескольких окон настроек одновременно
+        if hasattr(self, 'settings_dialog') and self.settings_dialog.isVisible():
+            self.settings_dialog.raise_()
+            self.settings_dialog.activateWindow()
+            return
+
+        # Импортируем и создаём окно настроек
+        from widgets.setting import ConfigEditor
+        self.settings_dialog = ConfigEditor(project_root=self.project_root)
+        self.settings_dialog.show()
