@@ -55,10 +55,18 @@ class ConfigEditor(QMainWindow):
         self.setCentralWidget(root)
         main = QVBoxLayout(root)
 
+        reset_btn = QPushButton("Перезапустить")
+        reset_btn.clicked.connect(self.reset_model)
+        main.addWidget(reset_btn)
+
         for title, keys in Headers:
             box = QGroupBox(title)
             form = QFormLayout(box)
             for key in keys:
+                if key == "tts.pitch_shift":
+                    reset_chat_btn = QPushButton("Очистить чат")
+                    reset_chat_btn.clicked.connect(self.reset_chat)
+                    main.addWidget(reset_chat_btn)  
                 form.addRow(Options[key][1], self._make_widget(key))
             main.addWidget(box)
 
@@ -90,10 +98,18 @@ class ConfigEditor(QMainWindow):
             for idx, dev in enumerate(sd.query_devices()):
                 if dev.get("max_input_channels", 0) > 0:
                     w.addItem(dev["name"], idx)
+
         elif kind == "dir":
             edit = QLineEdit()
             btn = QPushButton("Обзор...")
-            btn.clicked.connect(self._browse_dir)
+            additional = Options[key][1]
+            if additional == "Кэш":
+                btn.clicked.connect(lambda: self._browse_dir(0))
+            elif additional == "Init Prompt Path":
+                btn.clicked.connect(lambda: self._browse_dir(1))
+            else:
+                btn.clicked.connect(lambda: self._browse_dir(2))
+
             wrap = QWidget()
             row = QHBoxLayout(wrap)
             row.setContentsMargins(0, 0, 0, 0)
@@ -101,10 +117,17 @@ class ConfigEditor(QMainWindow):
             row.addWidget(btn)
             self.widgets[key] = edit
             return wrap
+        
         else:
             w = QLineEdit()
         self.widgets[key] = w
         return w
+    
+    def reset_chat(self):
+        print("очистить чат")
+
+    def reset_model(self):
+        print("перезапуск")
 
     def save(self):
         """Сохранение конфига и предложение перезапуска."""
@@ -139,12 +162,14 @@ class ConfigEditor(QMainWindow):
         except Exception as e:
             print(f"❌ Ошибка загрузки: {e}")
 
-    def _browse_dir(self):
+
+    def _browse_dir(self, ind):
         """Выбор директории через системный диалог."""
+        vars = ["cache_dir", "model.init_prompt_path", "model.chat_history_path"]
         path = QFileDialog.getExistingDirectory(self, "Выберите директорию")
         if path:
-            self.widgets["cache_dir"].setText(path)
-
+            self.widgets[vars[ind]].setText(path)
+    
     def _get(self, cfg, path):
         """Безопасное получение вложенного значения по точечному пути."""
         for part in path.split("."):
