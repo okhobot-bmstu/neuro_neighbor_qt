@@ -3,8 +3,10 @@ import os
 import json
 import sounddevice as sd
 from config.UI_class import Options, Headers
-
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox, QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+                               QHBoxLayout, QGroupBox, QLineEdit, QComboBox, 
+                               QPushButton, QCheckBox, QFormLayout, QFileDialog,
+                               QScrollArea)
 base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
 TEMPLATE_PATH = "config/config_template.json"
@@ -14,8 +16,6 @@ with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
 
 with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
     t1 = json.load(f)
-
-
 
 
 class ConfigEditor(QMainWindow):
@@ -30,24 +30,47 @@ class ConfigEditor(QMainWindow):
 
         root = QWidget(self)
         self.setCentralWidget(root)
-        main = QVBoxLayout(root)
+        main_layout = QVBoxLayout(root)         
 
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)    
+        
+        scroll_content = QWidget()     
+        scroll_layout = QVBoxLayout(scroll_content)
+        
+        reset_btn = QPushButton("Перезапустить")
+        reset_btn.clicked.connect(self.reset_model)
+        scroll_layout.addWidget(reset_btn)
+        
         for title, keys in Headers:
             box = QGroupBox(title)
             form = QFormLayout(box)
             for key in keys:
+                if key == "tts.pitch_shift":
+                    reset_chat_btn = QPushButton("Очистить чат")
+                    reset_chat_btn.clicked.connect(self.reset_chat)
+                    scroll_layout.addWidget(reset_chat_btn)  
                 form.addRow(Options[key][1], self._make_widget(key))
-            main.addWidget(box)
-
+            scroll_layout.addWidget(box)
+        
+        scroll_area.setWidget(scroll_content)
+        
+        main_layout.addWidget(scroll_area)
+        
         row = QHBoxLayout()
         for text, slot in (("Сохранить", self.save), ("Загрузить", self.load), ("Сброс", self.reset)):
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             row.addWidget(btn)
-
-        main.addLayout(row)
+        main_layout.addLayout(row)
+        
         self._apply(self.config_data)
 
+    def reset_chat(self):
+        print("очистить чат")
+
+    def reset_model(self):
+        print("перезапуск")
 
     def _make_widget(self, key):
         kind = Options[key][0]
@@ -66,17 +89,22 @@ class ConfigEditor(QMainWindow):
             w.addItems(items)
 
         elif kind == "mic":
-            pass
             w = QComboBox()
             w.addItem("Нету", -1)  
             for idx, dev in enumerate(sd.query_devices()):
-                    if dev.get("max_input_channels", 0) > 0:
-                        w.addItem(dev["name"], idx)
+                if dev.get("max_input_channels", 0) > 0:
+                    w.addItem(dev["name"], idx)
 
         elif kind == "dir":
             edit = QLineEdit()
             btn = QPushButton("Обзор...")
-            btn.clicked.connect(self._browse_dir)
+            additional = Options[key][1]
+            if additional == "Кэш":
+                btn.clicked.connect(lambda: self._browse_dir(0))
+            elif additional == "Init Prompt Path":
+                btn.clicked.connect(lambda: self._browse_dir(1))
+            else:
+                btn.clicked.connect(lambda: self._browse_dir(2))
 
             wrap = QWidget()
             row = QHBoxLayout(wrap)
@@ -88,55 +116,42 @@ class ConfigEditor(QMainWindow):
 
         self.widgets[key] = w
         return w
-    
 
     def save(self):
         try:
             self.config_data = self._collect()
-
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
-
             with open(CONFIG_PATH, "w", encoding="utf-8") as f:
                 json.dump(self.config_data, f, ensure_ascii=False)
-
-            # print("Сохранено")
-
         except Exception as e:
             print(f"Ошибка сохранения: {e}")
-
 
     def load(self):
         try:
             with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 self.config_data = json.load(f)
-
-            # print("Загружено")
             self._apply(self.config_data)
-
         except Exception as e:
             print(f"Ошибка загрузки: {e}")
 
-
-    def _browse_dir(self):
+    def _browse_dir(self, ind):
+        vars = ["cache_dir", "model.init_prompt_path", "model.chat_history_path"]
         path = QFileDialog.getExistingDirectory(self, "Выберите директорию")
         if path:
-            self.widgets["cache_dir"].setText(path) 
-    
+            self.widgets[vars[ind]].setText(path)
 
     def _get(self, cfg, path):
         for part in path.split("."):
             if not isinstance(cfg, dict) or part not in cfg:
-                pass
+                return None
             cfg = cfg[part]
         return cfg
-    
 
     def _apply(self, cfg):
         for key, w in self.widgets.items():
             val = self._get(cfg, key)
             if val is None:
                 continue
-
             if isinstance(w, QCheckBox):
                 w.setChecked(bool(val))
             elif isinstance(w, QComboBox):
@@ -149,18 +164,15 @@ class ConfigEditor(QMainWindow):
             else:
                 w.setText(str(val))
 
-
     def reset(self):
-        self.config_data = t1 
+        self.config_data = t1
         self._apply(self.config_data)
-
 
     def _set(self, cfg, path, value):
         parts = path.split(".")
         for part in parts[:-1]:
             cfg = cfg.setdefault(part, {})
         cfg[parts[-1]] = value
-
 
     def _collect(self):
         cfg = self.config_data
@@ -171,7 +183,6 @@ class ConfigEditor(QMainWindow):
                 val = w.currentData() if key == "stt.micro_index" else w.currentText()
             else:
                 val = w.text()
-
             if key in {
                 "model.max_console_op_depth",
                 "model.load_embeddings_count",
@@ -181,7 +192,6 @@ class ConfigEditor(QMainWindow):
                 "stt.silence_duration",
             }:
                 val = self._to_int(val, self._get(self.config_data, key) or 0)
-
             self._set(cfg, key, val)
         return cfg
 
