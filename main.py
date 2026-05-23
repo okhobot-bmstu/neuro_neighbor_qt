@@ -1,24 +1,21 @@
 import sys
-import os
-import json  # ← 1. ДОБАВИТЬ ЭТО
+import json
+from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from widgets.mainwindow import MainWindow
 
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
-if PROJECT_ROOT not in sys.path:
-    sys.path.insert(0, PROJECT_ROOT)
-ai_path = os.path.join(PROJECT_ROOT, "ai_nn")
-if ai_path not in sys.path:
-        sys.path.insert(0, ai_path)
+# Надёжное определение корня проекта (относительно этого файла)
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 def init_ai_engine():
     try:
+        # После pip install -e ai_nn пакет линкуется в site-packages.
+        # Импорт работает стандартно, sys.path модифицировать не нужно.
         from ai_nn import Ai_NN
 
-        config_path = os.path.join(PROJECT_ROOT, "config", "config.json")
+        config_path = PROJECT_ROOT / "config" / "config.json"
         print(f"📦 Инициализация AI (конфиг: {config_path})...")
 
-        # ← 2. ВЕРНУТЬ ЧТЕНИЕ ФАЙЛА И ПЕРЕДАЧУ СЛОВАРЯ
         with open(config_path, "r", encoding="utf-8") as f:
             config_dict = json.load(f)
 
@@ -31,6 +28,9 @@ def init_ai_engine():
     except json.JSONDecodeError as e:
         print(f"⚠️ Ошибка парсинга config.json: {e}")
         return None
+    except ImportError as e:
+        print(f"⚠️ Пакет ai_nn не найден. Установите в editable-режиме:\n   pip install -e ai_nn --no-deps\n   Ошибка: {e}")
+        return None
     except Exception as e:
         print(f"⚠️ Ошибка инициализации AI: {e}")
         return None
@@ -39,8 +39,7 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Neuro_neighbor")
 
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    style_path = os.path.join(base_dir, "styles", "style.qss")
+    style_path = PROJECT_ROOT / "styles" / "style.qss"
 
     try:
         with open(style_path, "r", encoding="utf-8") as f:
@@ -54,7 +53,8 @@ def main():
     else:
         print("⚠️ Запуск в UI-режиме (без AI)")
 
-    window = MainWindow(ai_engine=ai_engine)
+    # Явно передаём корень проекта для корректного поиска assets
+    window = MainWindow(ai_engine=ai_engine, project_root=PROJECT_ROOT)
     window.show()
     sys.exit(app.exec())
 

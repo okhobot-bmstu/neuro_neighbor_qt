@@ -1,5 +1,5 @@
 import threading
-import os
+from pathlib import Path
 from PyQt6.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
@@ -8,18 +8,22 @@ from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
 class MainWindow(QMainWindow):
     phrase_finished = pyqtSignal()
 
-    def __init__(self, ai_engine=None):
+    def __init__(self, ai_engine=None, project_root=None):
         super().__init__()
         self.setWindowTitle("Neuro_neighbor")
         self.resize(480, 560)
         self.setMinimumSize(420, 500)
+
+        # Если project_root не передан (например, тестирование отдельно),
+        # вычисляем его относительно папки widgets/
+        self.project_root = Path(project_root) if project_root else Path(__file__).resolve().parent.parent
 
         self.is_mic_active = False
         self.assets = {}
         self.ai_engine = ai_engine
         self._is_calibrating = False
         self._waiting_for_last_phrase = False
-        self.stop_timeout_timer = QTimer(self)  # ← Явный таймер вместо singleShot
+        self.stop_timeout_timer = QTimer(self)
         self.stop_timeout_timer.setSingleShot(True)
         self.stop_timeout_timer.timeout.connect(self._force_stop_if_idle)
 
@@ -90,12 +94,13 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
     def load_asset(self, name, filename):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(base_dir, '..', 'assets', filename)
-        if not os.path.exists(path):
-            print(f"⚠️ {filename} не найден")
+        # Надёжный путь к assets от корня проекта
+        path = self.project_root / "assets" / filename
+        if not path.exists():
+            print(f"⚠️ {filename} не найден по пути: {path}")
             return
-        img = QPixmap(path).toImage().convertToFormat(QImage.Format.Format_ARGB32)
+
+        img = QPixmap(str(path)).toImage().convertToFormat(QImage.Format.Format_ARGB32)
         for y in range(img.height()):
             for x in range(img.width()):
                 if img.pixelColor(x, y).lightness() > 240:
@@ -161,7 +166,7 @@ class MainWindow(QMainWindow):
             print("🔇 Микрофон выключен. Дожидаюсь конца фразы...")
             self.is_mic_active = False
             self._waiting_for_last_phrase = True
-            self.stop_timeout_timer.start(6000)  # 6 сек на дослушивание + транскрибацию
+            self.stop_timeout_timer.start(6000)
 
         self.mic_btn.setObjectName("micButtonActive" if self.is_mic_active else "micButton")
         self.mic_btn.style().unpolish(self.mic_btn)
@@ -182,7 +187,7 @@ class MainWindow(QMainWindow):
 
     def _on_phrase_finished(self):
         if self._waiting_for_last_phrase:
-            self.stop_timeout_timer.stop()  # Отменяем таймаут, фраза пришла
+            self.stop_timeout_timer.stop()
             self._waiting_for_last_phrase = False
             print("✅ Фраза обработана, останавливаю запись...")
             self._call_ai('stop_recognition')
@@ -190,7 +195,6 @@ class MainWindow(QMainWindow):
     def _force_stop_if_idle(self):
         if self._waiting_for_last_phrase:
             self._waiting_for_last_phrase = False
-            # Тихий сброс без лога: таймер просто гарантирует, что микрофон не зависнет
             self._call_ai('stop_recognition')
 
     def start_calibration(self):
@@ -222,10 +226,9 @@ class MainWindow(QMainWindow):
 
     def _finish_calibration(self):
         self._is_calibrating = False
-        self.stop_timeout_timer.stop()  # ← Добавьте эту строку
+        self.stop_timeout_timer.stop()  # ← Гарантируем сброс таймера
         self.calibrate_btn.setEnabled(True)
         self.calibrate_btn.setText("🔇 Калибровка")
-        # ... остальной код без изменений
 
     def open_settings(self):
         print("⚙️ Настройки")
