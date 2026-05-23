@@ -1,8 +1,12 @@
 import sys
 import json
+import warnings
 from pathlib import Path
 from PyQt6.QtWidgets import QApplication
 from widgets.mainwindow import MainWindow
+
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="noisereduce")
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
 
 # Надёжное определение корня проекта (относительно этого файла)
 PROJECT_ROOT = Path(__file__).resolve().parent

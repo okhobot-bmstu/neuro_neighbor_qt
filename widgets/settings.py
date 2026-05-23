@@ -1,34 +1,52 @@
 import sys
+import os
 import json
 from pathlib import Path
 import sounddevice as sd
 from config.UI_class import Options, Headers
 
-# ✅ Заменено PySide6 на PyQt6 под твою архитектуру
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog
+    QLineEdit, QComboBox, QPushButton, QCheckBox, QFormLayout, QFileDialog, QMessageBox
 )
 
+
 class ConfigEditor(QMainWindow):
-    def __init__(self, project_root: Path = None):
-        super().__init__()
-        # Надёжные пути к конфигам (не зависят от cwd)
+    def __init__(self, project_root: Path = None, parent = None):
+        super().__init__(parent)
         self.project_root = project_root or Path(__file__).resolve().parent.parent
         self.config_path = self.project_root / "config" / "config.json"
         self.template_path = self.project_root / "config" / "config_template.json"
-
         self.widgets = {}
 
-        # Загружаем шаблон конфигурации
+        # Загрузка шаблона по умолчанию
         try:
             with open(self.template_path, "r", encoding="utf-8") as f:
                 self.default_config = json.load(f)
-            self.config_data = self.default_config.copy()
         except Exception as e:
-            print(f"⚠️ Не удалось загрузить шаблон конфига: {e}")
+            print(f"⚠️ Не удалось загрузить шаблон: {e}")
             self.default_config = {}
-            self.config_data = {}
+
+        # Загрузка пользовательского конфига или фоллбэк на шаблон
+        if self.config_path.exists():
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    self.config_data = json.load(f)
+
+                def deep_merge(base, update):
+                    for k, v in update.items():
+                        if isinstance(v, dict) and k in base and isinstance(base[k], dict):
+                            deep_merge(base[k], v)
+                        elif k not in base:
+                            base[k] = v
+                    return base
+
+                self.config_data = deep_merge(self.config_data, self.default_config)
+            except Exception as e:
+                print(f"⚠️ Не удалось загрузить config.json: {e}")
+                self.config_data = self.default_config.copy()
+        else:
+            self.config_data = self.default_config.copy()
 
         self.setWindowTitle("Конфигуратор модели")
         self.resize(650, 720)
@@ -49,11 +67,12 @@ class ConfigEditor(QMainWindow):
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             row.addWidget(btn)
-
         main.addLayout(row)
+
         self._apply(self.config_data)
 
     def _make_widget(self, key):
+        """Создание UI-элемента по типу из конфига."""
         kind = Options[key][0]
         if kind == "text":
             w = QLineEdit()
@@ -83,22 +102,35 @@ class ConfigEditor(QMainWindow):
             self.widgets[key] = edit
             return wrap
         else:
-            w = QLineEdit()  # fallback
-
+            w = QLineEdit()
         self.widgets[key] = w
         return w
 
     def save(self):
+        """Сохранение конфига и предложение перезапуска."""
         try:
             self.config_data = self._collect()
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(self.config_data, f, ensure_ascii=False, indent=2)
-            print("✅ Конфигурация сохранена")
+
+            msg_box = QMessageBox(self)
+            msg_box.setIcon(QMessageBox.Icon.Information)
+            msg_box.setWindowTitle("Настройки сохранены")
+            msg_box.setText("Изменения вступят в силу после перезапуска.\nПерезапустить сейчас?")
+
+            btn_restart = msg_box.addButton("Перезапустить", QMessageBox.ButtonRole.AcceptRole)
+            msg_box.addButton("Позже", QMessageBox.ButtonRole.RejectRole)
+            msg_box.exec()
+
+            if msg_box.clickedButton() == btn_restart:
+                print("🔄 Перезапуск приложения...")
+                os.execl(sys.executable, sys.executable, *sys.argv)
         except Exception as e:
             print(f"❌ Ошибка сохранения: {e}")
 
     def load(self):
+        """Загрузка конфига из файла и обновление UI."""
         try:
             with open(self.config_path, "r", encoding="utf-8") as f:
                 self.config_data = json.load(f)
@@ -108,18 +140,21 @@ class ConfigEditor(QMainWindow):
             print(f"❌ Ошибка загрузки: {e}")
 
     def _browse_dir(self):
+        """Выбор директории через системный диалог."""
         path = QFileDialog.getExistingDirectory(self, "Выберите директорию")
         if path:
             self.widgets["cache_dir"].setText(path)
 
     def _get(self, cfg, path):
+        """Безопасное получение вложенного значения по точечному пути."""
         for part in path.split("."):
             if not isinstance(cfg, dict) or part not in cfg:
-                return None  # ✅ Починен баг: раньше тут было pass, что вызывало KeyError
+                return None
             cfg = cfg[part]
         return cfg
 
     def _apply(self, cfg):
+        """Применение значений конфига к UI-элементам."""
         for key, w in self.widgets.items():
             val = self._get(cfg, key)
             if val is None:
@@ -127,27 +162,26 @@ class ConfigEditor(QMainWindow):
             if isinstance(w, QCheckBox):
                 w.setChecked(bool(val))
             elif isinstance(w, QComboBox):
-                if key == "stt.micro_index":
-                    idx = w.findData(int(val))
-                    w.setCurrentIndex(idx if idx >= 0 else 0)
-                else:
-                    idx = w.findText(str(val))
-                    w.setCurrentIndex(idx if idx >= 0 else 0)
+                idx = w.findData(int(val)) if key == "stt.micro_index" else w.findText(str(val))
+                w.setCurrentIndex(idx if idx >= 0 else 0)
             else:
                 w.setText(str(val))
 
     def reset(self):
+        """Сброс настроек к значениям из шаблона."""
         self.config_data = self.default_config.copy()
         self._apply(self.config_data)
-        print("🔄 Конфигурация сброшена к шаблону")
+        print(" Конфигурация сброшена к шаблону")
 
     def _set(self, cfg, path, value):
+        """Установка значения в вложенную структуру по точечному пути."""
         parts = path.split(".")
         for part in parts[:-1]:
             cfg = cfg.setdefault(part, {})
         cfg[parts[-1]] = value
 
     def _collect(self):
+        """Сбор текущих значений UI в структуру конфига."""
         cfg = {}
         for key, w in self.widgets.items():
             if isinstance(w, QCheckBox):
@@ -158,11 +192,8 @@ class ConfigEditor(QMainWindow):
                 val = w.text()
 
             if key in {
-                "model.max_console_op_depth",
-                "model.load_embeddings_count",
-                "model.chat_size",
-                "tts.pitch_shift",
-                "stt.micro_index",
+                "model.max_console_op_depth", "model.load_embeddings_count",
+                "model.chat_size", "tts.pitch_shift", "stt.micro_index",
                 "stt.silence_duration",
             }:
                 val = self._to_int(val, self._get(self.config_data, key) or 0)
@@ -171,10 +202,12 @@ class ConfigEditor(QMainWindow):
         return cfg
 
     def _to_int(self, text, silly=0):
+        """Безопасное преобразование строки в int."""
         try:
             return int(str(text).strip())
         except Exception:
             return silly
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
