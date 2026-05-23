@@ -14,17 +14,22 @@ TEMPLATE_PATH = "config/config_template.json"
 with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
     test_config = json.load(f)
 
-with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
-    t1 = json.load(f)
-
 
 class ConfigEditor(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config_path = CONFIG_PATH
         self.widgets = {}
-        self.config_data = test_config
-
+        if os.path.exists(self.config_path):
+            try:
+                with open(self.config_path, "r", encoding="utf-8") as f:
+                    self.config_data = json.load(f)
+            except Exception as e:
+                print(f"Ошибка чтения config.json: {e}. Загружен шаблон.")
+                self.config_data = test_config
+        else:
+            self.config_data = test_config
+        
         self.setWindowTitle("Конфигуратор модели")
         self.resize(650, 720)
 
@@ -65,6 +70,7 @@ class ConfigEditor(QMainWindow):
         main_layout.addLayout(row)
         
         self._apply(self.config_data)
+
 
     def reset_chat(self):
         print("очистить чат")
@@ -165,7 +171,7 @@ class ConfigEditor(QMainWindow):
                 w.setText(str(val))
 
     def reset(self):
-        self.config_data = t1
+        self.config_data = test_config
         self._apply(self.config_data)
 
     def _set(self, cfg, path, value):
@@ -200,7 +206,7 @@ class ConfigEditor(QMainWindow):
             return int(str(text).strip())
         except Exception:
             return silly
-
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = ConfigEditor()
