@@ -3,10 +3,10 @@ import os
 import json
 import sounddevice as sd
 from config.UI_class import Options, Headers
-from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                               QHBoxLayout, QGroupBox, QLineEdit, QComboBox, 
-                               QPushButton, QCheckBox, QFormLayout, QFileDialog,
-                               QScrollArea)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
+                             QHBoxLayout, QGroupBox, QLineEdit, QComboBox,
+                             QPushButton, QCheckBox, QFormLayout, QFileDialog,
+                             QScrollArea)
 base_directory = os.getcwd()
 CONFIG_PATH = "config/config.json"
 TEMPLATE_PATH = "config/config_template.json"
@@ -29,24 +29,24 @@ class ConfigEditor(QMainWindow):
                 self.config_data = test_config
         else:
             self.config_data = test_config
-        
+
         self.setWindowTitle("Конфигуратор модели")
         self.resize(650, 720)
 
         root = QWidget(self)
         self.setCentralWidget(root)
-        main_layout = QVBoxLayout(root)         
+        main_layout = QVBoxLayout(root)
 
         scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)    
-        
-        scroll_content = QWidget()     
+        scroll_area.setWidgetResizable(True)
+
+        scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
-        
+
         reset_btn = QPushButton("Перезапустить")
         reset_btn.clicked.connect(self.reset_model)
         scroll_layout.addWidget(reset_btn)
-        
+
         for title, keys in Headers:
             box = QGroupBox(title)
             form = QFormLayout(box)
@@ -54,21 +54,21 @@ class ConfigEditor(QMainWindow):
                 if key == "tts.pitch_shift":
                     reset_chat_btn = QPushButton("Очистить чат")
                     reset_chat_btn.clicked.connect(self.reset_chat)
-                    scroll_layout.addWidget(reset_chat_btn)  
+                    scroll_layout.addWidget(reset_chat_btn)
                 form.addRow(Options[key][1], self._make_widget(key))
             scroll_layout.addWidget(box)
-        
+
         scroll_area.setWidget(scroll_content)
-        
+
         main_layout.addWidget(scroll_area)
-        
+
         row = QHBoxLayout()
         for text, slot in (("Сохранить", self.save), ("Загрузить", self.load), ("Сброс", self.reset)):
             btn = QPushButton(text)
             btn.clicked.connect(slot)
             row.addWidget(btn)
         main_layout.addLayout(row)
-        
+
         self._apply(self.config_data)
 
 
@@ -84,7 +84,7 @@ class ConfigEditor(QMainWindow):
         if kind == "text":
             w = QLineEdit()
             if "token" in key:
-                w.setEchoMode(QLineEdit.Password)
+                w.setEchoMode(QLineEdit.EchoMode.Password)
 
         elif kind == "check":
             w = QCheckBox()
@@ -96,7 +96,7 @@ class ConfigEditor(QMainWindow):
 
         elif kind == "mic":
             w = QComboBox()
-            w.addItem("Нету", -1)  
+            w.addItem("Нету", -1)
             for idx, dev in enumerate(sd.query_devices()):
                 if dev.get("max_input_channels", 0) > 0:
                     w.addItem(dev["name"], idx)
@@ -206,7 +206,7 @@ class ConfigEditor(QMainWindow):
             return int(str(text).strip())
         except Exception:
             return silly
-    
+        
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     win = ConfigEditor()
