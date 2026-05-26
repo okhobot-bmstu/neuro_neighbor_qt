@@ -39,7 +39,6 @@ class ConfigEditor(QMainWindow):
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-
         scroll_content = QWidget()
         scroll_layout = QVBoxLayout(scroll_content)
 
@@ -59,7 +58,6 @@ class ConfigEditor(QMainWindow):
             scroll_layout.addWidget(box)
 
         scroll_area.setWidget(scroll_content)
-
         main_layout.addWidget(scroll_area)
 
         row = QHBoxLayout()
@@ -70,7 +68,6 @@ class ConfigEditor(QMainWindow):
         main_layout.addLayout(row)
 
         self._apply(self.config_data)
-
 
     def reset_chat(self):
         print("очистить чат")
