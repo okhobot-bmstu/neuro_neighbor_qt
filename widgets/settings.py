@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGroupBox, QLineEdit, QComboBox,
                              QPushButton, QCheckBox, QFormLayout, QFileDialog,
                              QScrollArea)
+from PyQt6.QtGui import QIntValidator
 
 Options = {
     "cache_dir": ("dir", "Кэш"),
@@ -44,6 +45,13 @@ Headers = [
     ("TTS", ["tts.pitch_shift", "tts.speaker_name", "tts.model_name"]),
     ("STT", ["stt.model", "stt.device", "stt.use_nr", "stt.silence_duration", "stt.micro_index"]),
 ]
+positive_keys = {
+        "model.max_console_op_depth",
+        "model.load_embeddings_count",
+        "model.chat_size",
+        "stt.silence_duration",
+    }
+
 CONFIG_PATH = "config/config.json"
 TEMPLATE_PATH = "config/config_template.json"
 
@@ -53,6 +61,7 @@ with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
 
 
 class ConfigEditor(QMainWindow):
+    
     def __init__(self):
         super().__init__()
         self.config_path = CONFIG_PATH
@@ -115,10 +124,17 @@ class ConfigEditor(QMainWindow):
     def _make_widget(self, key):
         kind = Options[key][0]
 
+    def _make_widget(self, key):
+        kind = Options[key][0]
+
         if kind == "text":
             w = QLineEdit()
             if "token" in key:
                 w.setEchoMode(QLineEdit.EchoMode.Password)
+            if key in positive_keys: 
+                w.setValidator(QIntValidator(0, 999_999_999, self))
+            elif key == "tts.pitch_shift":
+                w.setValidator(QIntValidator())
 
         elif kind == "check":
             w = QCheckBox()
