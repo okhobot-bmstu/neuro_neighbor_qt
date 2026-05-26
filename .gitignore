@@ -1,0 +1,27 @@
+# === Python (кэш, сборки, метаданные) ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# === Виртуальное окружение ===
+venv/
+.venv/
+env/
+
+# === Пользовательские конфиги и runtime-данные ===
+config/config.json
+config/chat_history.json
+config/mem_data.json
+config/init_prompt.txt 
+
+# === Локальные скрипты ===
+
+run.sh
+
+# === IDE и временные файлы ОС ===
+.idea/
+.vscode/
+*.swp
+.DS_Store
