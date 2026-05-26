@@ -117,14 +117,15 @@ class ConfigEditor(QMainWindow):
         self._apply(self.config_data)
 
     def reset_chat(self):
-        chat_path_str = self._get(self.config_data, "model.chat_history_path")
+        path_edit = self.widgets.get("model.chat_history_path")
+        chat_path_str = path_edit.text().strip()
         chat_path = Path(chat_path_str)
         try:
             if chat_path.exists():
                 chat_path.unlink() 
-                print(f"История удалена: {chat_path}")
+                print(f"История удалена ({chat_path}).")
             else:
-                print("Файл не найден.")
+                print("Файл с историей не найден.")
         except Exception as e:
             print(f"Ошибка при удалении: {e}")
 
