@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QPushButton, QCheckBox, QFormLayout, QFileDialog,
                              QScrollArea)
 from PyQt6.QtGui import QIntValidator
+from pathlib import Path
 
 Options = {
     "cache_dir": ("dir", "Кэш"),
@@ -62,7 +63,7 @@ with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
 
 class ConfigEditor(QMainWindow):
     
-    def __init__(self):
+    def __init__(self, project_root: Path = None, parent= None):
         super().__init__()
         self.config_path = CONFIG_PATH
         self.widgets = {}
