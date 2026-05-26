@@ -2,14 +2,51 @@ import sys
 import os
 import json
 import sounddevice as sd
-from config.UI_class import Options, Headers
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGroupBox, QLineEdit, QComboBox,
                              QPushButton, QCheckBox, QFormLayout, QFileDialog,
                              QScrollArea)
-base_directory = os.getcwd()
+
+Options = {
+    "cache_dir": ("dir", "Кэш"),
+    "hf_token": ("text", "HF Token"),
+    "offline": ("check", "Офлайн режим"),
+
+    "model.repo_id": ("text", "Repo ID"),
+    "model.filename": ("text", "Filename"),
+    "model.init_prompt_path": ("dir", "Init Prompt Path"),  
+    "model.chat_history_path": ("dir", "Chat History Path"), 
+    "model.init_prompt_role": ("combo", "Init Prompt Role", ["user", "system", "assistant"]),
+    "model.max_console_op_depth": ("text", "Max Depth"),
+    "model.load_embeddings_count": ("text", "Embeddings"),
+    "model.chat_size": ("text", "Chat Size"),
+    "model.use_gpu": ("check", "Use GPU"),
+
+    "tts.pitch_shift": ("text", "Pitch Shift"),
+    "tts.speaker_name": ("text", "Speaker"),
+    "tts.model_name": ("text", "Model Name"),
+
+    "stt.model": ("combo", "Model", ["tiny", "base", "small", "medium", "large"]),
+    "stt.device": ("combo", "Device", ["cpu", "cuda"]),
+    "stt.use_nr": ("check", "Use NR"),
+    "stt.micro_index": ("mic", "Microphone"),
+    "stt.silence_duration": ("text", "Silence Duration"),
+}
+
+Headers = [
+    ("Основные", ["cache_dir", "hf_token", "offline"]),
+    ("Модель", [
+        "model.repo_id", "model.filename", "model.init_prompt_path",
+        "model.chat_history_path", "model.init_prompt_role",
+        "model.max_console_op_depth", "model.load_embeddings_count",
+        "model.chat_size", "model.use_gpu",
+    ]),
+    ("TTS", ["tts.pitch_shift", "tts.speaker_name", "tts.model_name"]),
+    ("STT", ["stt.model", "stt.device", "stt.use_nr", "stt.silence_duration", "stt.micro_index"]),
+]
 CONFIG_PATH = "config/config.json"
 TEMPLATE_PATH = "config/config_template.json"
+
 
 with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
     test_config = json.load(f)
