@@ -98,7 +98,7 @@ class ConfigEditor(QMainWindow):
             form = QFormLayout(box)
             for key in keys:
                 if key == "tts.pitch_shift":
-                    reset_chat_btn = QPushButton("Очистить чат")
+                    reset_chat_btn = QPushButton("Очистить историю")
                     reset_chat_btn.clicked.connect(self.reset_chat)
                     scroll_layout.addWidget(reset_chat_btn)
                 form.addRow(Options[key][1], self._make_widget(key))
