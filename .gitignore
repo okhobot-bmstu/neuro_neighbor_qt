@@ -15,6 +15,8 @@ config/config.json
 config/chat_history.json
 config/mem_data.json
 config/init_prompt.txt 
+config/chat_session.json
+
 
 # === Локальные скрипты ===
 
