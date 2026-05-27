@@ -1,7 +1,13 @@
+import sys
+import os
 import threading
 from pathlib import Path
-from PyQt6.QtWidgets import QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout, QGraphicsDropShadowEffect
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+
+from PyQt6.QtWidgets import (
+    QMainWindow, QPushButton, QWidget, QVBoxLayout, QHBoxLayout,
+    QGraphicsDropShadowEffect, QApplication
+)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QProcess
 from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
 
 
@@ -21,6 +27,7 @@ class MainWindow(QMainWindow):
         self.ai_engine = ai_engine
         self._is_calibrating = False
         self._waiting_for_last_phrase = False
+        self.settings_dialog = None
 
         self.stop_timeout_timer = QTimer(self)
         self.stop_timeout_timer.setSingleShot(True)
@@ -40,7 +47,6 @@ class MainWindow(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        """Инициализация интерфейса и раскладка виджетов."""
         self.load_asset('mic', 'microphone.png')
         self.load_asset('settings', 'settings.png')
 
@@ -93,7 +99,6 @@ class MainWindow(QMainWindow):
         layout.addStretch()
 
     def load_asset(self, name, filename):
-        """Загрузка иконки с прозрачностью для белых пикселей."""
         path = self.project_root / "assets" / filename
         if not path.exists():
             print(f"⚠️ {filename} не найден: {path}")
@@ -106,7 +111,6 @@ class MainWindow(QMainWindow):
         self.assets[name] = QPixmap.fromImage(img)
 
     def make_icon(self, name, color):
-        """Создание цветной иконки из ассета или fallback-графики."""
         if name not in self.assets or self.assets[name].isNull():
             return self.fallback(name, color)
         p = QPixmap(self.assets[name].size())
@@ -119,7 +123,6 @@ class MainWindow(QMainWindow):
         return QIcon(p)
 
     def make_mic_icon(self, color, crossed=False):
-        """Генерация иконки микрофона с опциональным перечеркиванием."""
         icon = self.make_icon('mic', color)
         if crossed:
             p = icon.pixmap(160, 160)
@@ -132,7 +135,6 @@ class MainWindow(QMainWindow):
         return icon
 
     def fallback(self, name, color):
-        """Программная отрисовка иконки шестеренки, если ассет отсутствует."""
         if name == 'settings':
             p = QPixmap(50, 50)
             p.fill(Qt.GlobalColor.transparent)
@@ -154,12 +156,10 @@ class MainWindow(QMainWindow):
         return QIcon()
 
     def update_mic_icon(self):
-        """Обновление состояния иконки микрофона в зависимости от активности."""
         self.mic_btn.setIcon(self.mic_icon_on if self.is_mic_active else self.mic_icon_off)
         self.mic_btn.setIconSize(self.mic_btn.size() * 0.65)
 
     def toggle_microphone(self):
-        """Переключение состояния микрофона и запуск/остановка распознавания."""
         if not self.is_mic_active:
             print("🎤 Микрофон ВКЛЮЧЁН")
             self._waiting_for_last_phrase = False
@@ -177,7 +177,6 @@ class MainWindow(QMainWindow):
         self.update_mic_icon()
 
     def _call_ai(self, method_name):
-        """Безопасный вызов методов AI-движка."""
         if not self.ai_engine:
             print("⚠️ AI-движок не инициализирован")
             return
@@ -185,12 +184,11 @@ class MainWindow(QMainWindow):
             try:
                 getattr(self.ai_engine, method_name)()
             except Exception as e:
-                print(f"️ Ошибка AI.{method_name}: {e}")
+                print(f"⚠️ Ошибка AI.{method_name}: {e}")
         else:
             print(f"⚠️ Метод {method_name} не найден в AI-модуле")
 
     def _on_phrase_finished(self):
-        """Обработка сигнала завершения фразы от STT."""
         if self._waiting_for_last_phrase:
             self.stop_timeout_timer.stop()
             self._waiting_for_last_phrase = False
@@ -198,13 +196,11 @@ class MainWindow(QMainWindow):
             self._call_ai('stop_recognition')
 
     def _force_stop_if_idle(self):
-        """Принудительная остановка при превышении таймаута тишины."""
         if self._waiting_for_last_phrase:
             self._waiting_for_last_phrase = False
             self._call_ai('stop_recognition')
 
     def start_calibration(self):
-        """Запуск процесса калибровки микрофона в отдельном потоке."""
         if not self.ai_engine or not hasattr(self.ai_engine, 'calibrate'):
             print("⚠️ Калибровка недоступна")
             return
@@ -212,7 +208,7 @@ class MainWindow(QMainWindow):
         self._is_calibrating = True
         self.calibrate_btn.setEnabled(False)
         self.calibrate_btn.setText("⏳ Слушаю шум...")
-        print("️ Калибровка: пожалуйста, молчите 3 секунды...")
+        print("⏱️ Калибровка: пожалуйста, молчите 3 секунды...")
 
         if self.is_mic_active:
             self._call_ai('stop_recognition')
@@ -220,7 +216,6 @@ class MainWindow(QMainWindow):
         threading.Thread(target=self._run_calibration, daemon=True).start()
 
     def _run_calibration(self):
-        """Вызов калибровки AI и обработка результатов."""
         try:
             self.ai_engine.calibrate(duration=3)
             print("✅ Калибровка завершена успешно")
@@ -230,24 +225,56 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(0, self._finish_calibration)
 
     def _finish_calibration(self):
-        """Возврат интерфейса в исходное состояние после калибровки."""
         self._is_calibrating = False
         self.stop_timeout_timer.stop()
         self.calibrate_btn.setEnabled(True)
         self.calibrate_btn.setText("🔇 Калибровка")
 
     def open_settings(self):
-        if hasattr(self, 'settings_dialog') and self.settings_dialog.isVisible():
+        if self.settings_dialog and self.settings_dialog.isVisible():
             self.settings_dialog.raise_()
             self.settings_dialog.activateWindow()
             return
 
         from widgets.settings import ConfigEditor
         self.settings_dialog = ConfigEditor(project_root=self.project_root, parent=self)
+
+        # 🔍 Ищем кнопку по тексту и подключаемся НАПРЯМУЮ к ней
+        # Это работает независимо от того, как коллега подключил сигнал
+        for btn in self.settings_dialog.findChildren(QPushButton):
+            if btn.text().strip() == "Перезапустить":
+                btn.clicked.connect(self._on_restart_clicked)
+                break
+
         self.settings_dialog.show()
 
-    def closeEvent(self, event):
-        """Гарантированное закрытие окна настроек при выходе из приложения."""
-        if hasattr(self, 'settings_dialog') and self.settings_dialog is not None:
+    def _on_restart_clicked(self):
+        """Вызывается при клике по кнопке 'Перезапустить' в настройках."""
+        print("🔄 Получен запрос на перезапуск приложения")
+        self._handle_restart()
+
+    def _handle_restart(self):
+        """Безопасный перезапуск приложения с гарантированным завершением."""
+        # 1. Закрываем настройки
+        if self.settings_dialog:
             self.settings_dialog.close()
-        super().closeEvent(event)
+            self.settings_dialog = None
+
+        # 2. Останавливаем аудио-потоки
+        if self.is_mic_active:
+            self.is_mic_active = False
+            self._call_ai('stop_recognition')
+
+        # 3. Запускаем независимый процесс
+        executable = sys.executable
+        args = sys.argv
+        work_dir = os.getcwd()
+
+        if getattr(sys, 'frozen', False):  # PyInstaller / Nuitka
+            QProcess.startDetached(executable, args, work_dir)
+        else:
+            script_path = os.path.abspath(sys.argv[0])
+            QProcess.startDetached(executable, [script_path] + args[1:], work_dir)
+
+        # 4. Мгновенно завершаем текущий экземпляр
+        QApplication.instance().quit()
