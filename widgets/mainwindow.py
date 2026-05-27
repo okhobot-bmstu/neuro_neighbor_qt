@@ -21,7 +21,6 @@ class MainWindow(QMainWindow):
     def __init__(self, ai_engine=None, project_root=None):
         super().__init__()
         self.setWindowTitle("Neuro_neighbor")
-        self.resize(1920, 1080)
         self.setMinimumSize(500, 700)
 
         self.project_root = Path(project_root) or Path(__file__).resolve().parent.parent
@@ -48,6 +47,7 @@ class MainWindow(QMainWindow):
             self.ai_engine.stt.call_func = patched_cb
 
         self._init_ui()
+        self.showMaximized()
 
     def _init_ui(self):
         self.load_asset('settings', 'settings.png')
