@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QScrollArea)
 from PyQt6.QtGui import QIntValidator
 from pathlib import Path
+from PyQt6.QtCore import pyqtSignal
 
 Options = {
     "cache_dir": ("dir", "Кэш"),
@@ -62,6 +63,8 @@ with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
 
 
 class ConfigEditor(QMainWindow):
+    
+    reset_signal = pyqtSignal()
     
     def __init__(self, project_root: Path = None, parent= None):
         super().__init__()
@@ -130,7 +133,7 @@ class ConfigEditor(QMainWindow):
             print(f"Ошибка при удалении: {e}")
 
     def reset_model(self):
-        print("перезапуск")
+        self.reset_signal.emit()
 
     def _make_widget(self, key):
         kind = Options[key][0]
