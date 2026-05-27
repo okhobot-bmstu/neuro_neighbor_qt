@@ -135,9 +135,6 @@ class ConfigEditor(QMainWindow):
     def _make_widget(self, key):
         kind = Options[key][0]
 
-    def _make_widget(self, key):
-        kind = Options[key][0]
-
         if kind == "text":
             w = QLineEdit()
             if "token" in key:
