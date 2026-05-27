@@ -140,7 +140,7 @@ class ConfigEditor(QMainWindow):
             if "token" in key:
                 w.setEchoMode(QLineEdit.EchoMode.Password)
             if key in positive_keys: 
-                w.setValidator(QIntValidator(0, 999_999_999, self))
+                w.setValidator(QIntValidator(0, 1_000_000, self))
             elif key == "tts.pitch_shift":
                 w.setValidator(QIntValidator())
 
