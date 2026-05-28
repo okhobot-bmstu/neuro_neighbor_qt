@@ -28,7 +28,7 @@ class ChatPanel(QWidget):
         layout.addWidget(self.chat_display, stretch=1)
 
         # Восстановление сообщений при запуске (последние 100)
-        for msg in self.chat_history[-100:]:
+        for msg in self.chat_history[-100:][2:]:
             self._append_chat_message(msg["content"], msg["role"] == "user")
 
         input_row = QHBoxLayout()
