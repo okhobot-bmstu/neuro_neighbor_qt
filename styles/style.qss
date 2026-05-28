@@ -1,13 +1,11 @@
-/* Фон главного окна */
 QMainWindow {
     background-color: #2b2b2b;
 }
 
-/* Кнопка микрофона (выключена) */
 #micButton {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #e74c3c, stop:1 #c0392b);
     border: none;
-    border-radius: 70px; /* 140px / 2 = идеальный круг */
+    border-radius: 70px;
     padding: 0;
 }
 #micButton:hover {
@@ -17,7 +15,6 @@ QMainWindow {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #c0392b, stop:1 #a93226);
 }
 
-/* Кнопка микрофона (активна) */
 #micButtonActive {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2ecc71, stop:1 #27ae60);
     border: 2px solid #2ecc71;
@@ -31,7 +28,6 @@ QMainWindow {
     background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #27ae60, stop:1 #219a52);
 }
 
-/* Кнопка настроек */
 #settingsButton {
     background-color: #555555;
     border: 2px solid #666666;
@@ -45,7 +41,6 @@ QMainWindow {
     background-color: #444444;
 }
 
-/* Кнопка калибровки */
 #calibrateButton {
     background-color: #555555;
     color: #ffffff;
@@ -67,7 +62,6 @@ QMainWindow {
     border-color: #555555;
 }
 
-/* Всплывающая подсказка */
 QToolTip {
     background-color: #3a3a3a;
     color: #ffffff;
@@ -77,14 +71,13 @@ QToolTip {
     font-size: 13px;
 }
 
-/* Чат */
 QTextEdit#chatDisplay {
     background: #1a1a1a; 
     border: 1px solid #404040; 
     border-radius: 8px;
     padding: 10px; 
     color: #e6e6e6; 
-    font-size: 16px; /* Увеличено для лучшей читаемости */
+    font-size: 16px;
 }
 
 QLineEdit#chatInput {
