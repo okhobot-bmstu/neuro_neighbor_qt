@@ -54,11 +54,10 @@ class ChatPanel(QWidget):
             return
 
         safe = text.replace(" & ", " &amp; ").replace(" < ", " &lt; ").replace(" > ", " &gt; ").replace("\n", " <br > ")
-        
-        # ИЗМЕНЕНИЕ 1: Затемнил фон для пользователя (было #0066cc, стало #004488)
-        bg = "#004488" if is_user else "#333333"
-        
-        html = f'<span style="display: inline-block; background: {bg}; color: white; padding: 12px 18px; border-radius: 16px; max-width: 75%; font-size: 18px; line-height: 1.6; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">{safe}</span>'
+
+        bg = "#374658" if is_user else "#333333"
+        border = "border: 2px solid #003366;" if is_user else ""
+        html = f'<span style="display: inline-block; background: {bg}; {border} color: white; padding: 12px 18px; border-radius: 16px; max-width: 75%; font-size: 18px; line-height: 1.6; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">{safe}</span>'
 
         cursor = self.chat_display.textCursor()
         cursor.movePosition(cursor.MoveOperation.End)

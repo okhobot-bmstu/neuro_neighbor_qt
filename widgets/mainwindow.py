@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QMessageBox, QApplication
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QProcess
-from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
+from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QImage
 from .chat_panel import ChatPanel
 from .mic_control import MicControl
 
