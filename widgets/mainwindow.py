@@ -175,6 +175,7 @@ class MainWindow(QMainWindow):
         self.calibrate_btn.setEnabled(True)
         self.calibrate_btn.setText("Калибровка")
         self._show_calibration_result(success)
+        if self.is_mic_active: self._call_ai('start_recognition')
 
     def _show_calibration_result(self, success: bool):
         if success:
