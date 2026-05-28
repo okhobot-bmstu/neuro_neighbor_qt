@@ -36,7 +36,6 @@ class MainWindow(QMainWindow):
         self.phrase_finished.connect(self._on_phrase_finished)
         self.calibration_done.connect(self._finish_calibration)
 
-        # Патчим STT-коллбэк для эмитации сигнала без изменения src/
         if self.ai_engine and hasattr(self.ai_engine, 'stt'):
             original_cb = self.ai_engine.stt.call_func
             def patched_cb(text, depth=0):
@@ -86,10 +85,8 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.mic_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def load_asset(self, name: str, filename: str):
-        """Загрузка PNG с конвертацией белого фона в прозрачность."""
         path = self.project_root / "assets" / filename
         if not path.exists(): return
-
         img = QPixmap(str(path)).toImage().convertToFormat(QImage.Format.Format_ARGB32)
         for y in range(img.height()):
             for x in range(img.width()):
@@ -98,10 +95,8 @@ class MainWindow(QMainWindow):
         self.assets[name] = QPixmap.fromImage(img)
 
     def _make_settings_icon(self, color: str) -> QIcon:
-        """Перекраска PNG-ассета с сохранением альфа-канала."""
         asset = self.assets.get('settings')
         if not asset or asset.isNull(): return self._fallback_settings_icon(color)
-
         p = QPixmap(asset.size())
         p.fill(Qt.GlobalColor.transparent)
         qp = QPainter(p)
@@ -113,7 +108,6 @@ class MainWindow(QMainWindow):
         return QIcon(p)
 
     def _fallback_settings_icon(self, color: str) -> QIcon:
-        """Векторная заглушка при отсутствии ассета."""
         size = 44
         p = QPixmap(size, size)
         p.fill(Qt.GlobalColor.transparent)
@@ -132,7 +126,6 @@ class MainWindow(QMainWindow):
         return QIcon(p)
 
     def _on_mic_toggled(self, is_active: bool):
-        """Обработка переключения микрофона: запуск/остановка распознавания."""
         self.is_mic_active = is_active
         if is_active:
             self._waiting_for_last_phrase = False
@@ -142,27 +135,23 @@ class MainWindow(QMainWindow):
             self.stop_timeout_timer.start(1000)
 
     def _call_ai(self, method_name):
-        """Безопасный вызов методов внешнего AI-движка."""
         if not self.ai_engine: return
         if hasattr(self.ai_engine, method_name):
             try: getattr(self.ai_engine, method_name)()
             except Exception as e: print(f"⚠️ Ошибка AI.{method_name}: {e}")
 
     def _on_phrase_finished(self):
-        """Обработка сигнала окончания фразы: остановка таймера и AI."""
         if self._waiting_for_last_phrase:
             self.stop_timeout_timer.stop()
             self._waiting_for_last_phrase = False
             self._call_ai('stop_recognition')
 
     def _force_stop_if_idle(self):
-        """Принудительная остановка, если фраза не была распознана."""
         if self._waiting_for_last_phrase:
             self._waiting_for_last_phrase = False
             self._call_ai('stop_recognition')
 
     def start_calibration(self):
-        """Запуск процесса калибровки микрофона в отдельном потоке."""
         if not self.ai_engine or not hasattr(self.ai_engine, 'calibrate'): return
         self._is_calibrating = True
         self.calibrate_btn.setEnabled(False)
@@ -171,7 +160,6 @@ class MainWindow(QMainWindow):
         threading.Thread(target=self._run_calibration, daemon=True).start()
 
     def _run_calibration(self):
-        """Фоновая задача: вызов калибровки и обработка ошибок."""
         success = True
         try:
             self.ai_engine.calibrate(duration=3)
@@ -182,7 +170,6 @@ class MainWindow(QMainWindow):
             self.calibration_done.emit(success)
 
     def _finish_calibration(self, success: bool):
-        """Завершение калибровки в UI-потоке (вызывается через сигнал)."""
         self._is_calibrating = False
         self.stop_timeout_timer.stop()
         self.calibrate_btn.setEnabled(True)
@@ -190,7 +177,6 @@ class MainWindow(QMainWindow):
         self._show_calibration_result(success)
 
     def _show_calibration_result(self, success: bool):
-        """Показ результата калибровки пользователю."""
         if success:
             QMessageBox.information(self, "Калибровка", "Калибровка микрофона успешно завершена.")
         else:
@@ -199,7 +185,6 @@ class MainWindow(QMainWindow):
                                 "Возможно, устройство не поддерживает частоту дискретизации или занято.")
 
     def open_settings(self):
-        """Открытие окна настроек с проверкой на уже открытое окно."""
         if self.settings_dialog is not None:
             try:
                 if self.settings_dialog.isVisible():
@@ -233,45 +218,40 @@ class MainWindow(QMainWindow):
                 except Exception: pass
                 btn.clicked.connect(self._on_save_clicked)
             elif "очистить историю" in text:
-                original_clear = self.settings_dialog.reset_chat
-                def wrapped_clear():
-                    original_clear()
-                    self.chat_panel.clear_history()
-                    if self.ai_engine and hasattr(self.ai_engine, 'neuro'):
-                        if hasattr(self.ai_engine.neuro, 'chat_history'):
-                            self.ai_engine.neuro.chat_history.clear()
-                        self._call_ai('load_history')
-                btn.clicked.connect(wrapped_clear)
+                try: btn.clicked.disconnect()
+                except Exception: pass
+                btn.clicked.connect(self._on_clear_history_clicked)
+
+    def _show_restart_dialog(self, message: str):
+        """Универсальный диалог перезапуска для сохранения и очистки."""
+        QApplication.processEvents()
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Перезапуск")
+        msg.setText(message)
+        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+        msg.setWindowModality(Qt.WindowModality.ApplicationModal)
+        if msg.exec() == QMessageBox.StandardButton.Yes:
+            self._handle_restart()
 
     def _on_save_clicked(self):
-        """Сохранение настроек и показ диалога перезапуска с фокусом на Yes."""
-        if not self.settings_dialog:
-            return
-
+        if not self.settings_dialog: return
         try:
             if hasattr(self.settings_dialog, 'save'):
                 self.settings_dialog.save()
         except Exception as e:
             print(f"⚠️ Ошибка сохранения настроек: {e}")
             return
+        self._show_restart_dialog("Изменения вступят в силу после перезапуска.\nПерезапустить сейчас?")
 
-        QApplication.processEvents()
-
-        msg = QMessageBox(self.settings_dialog)
-        msg.setWindowTitle("Сохранение")
-        msg.setText("Изменения вступят в силу после перезапуска.\nПерезапустить сейчас?")
-        msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
-        msg.setWindowModality(Qt.WindowModality.ApplicationModal)
-
-        result = msg.exec()
-
-        if result == QMessageBox.StandardButton.Yes:
-            self._handle_restart()
-            return
+    def _on_clear_history_clicked(self):
+        """Очистка через AI и вызов того же окна перезапуска."""
+        if self.ai_engine and hasattr(self.ai_engine, 'remove_history'):
+            try: self.ai_engine.remove_history()
+            except Exception as e: print(f"⚠️ Ошибка очистки истории AI: {e}")
+        self._show_restart_dialog("История чата очищена. Изменения вступят в силу после перезапуска.\nПерезапустить сейчас?")
 
     def _handle_restart(self):
-        """Грейсфул-перезапуск приложения."""
         if self.settings_dialog:
             self.settings_dialog.close()
             self.settings_dialog = None
@@ -290,7 +270,6 @@ class MainWindow(QMainWindow):
         QApplication.instance().quit()
 
     def closeEvent(self, event):
-        """Безопасная очистка потоков и дочерних окон при закрытии."""
         if hasattr(self, 'chat_panel') and self.chat_panel.chat_worker and self.chat_panel.chat_worker.isRunning():
             self.chat_panel.chat_worker.wait(2000)
         if self.settings_dialog is not None:

@@ -1,13 +1,12 @@
 import json
 from pathlib import Path
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLineEdit, QPushButton
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QTextBlockFormat
 from .chat_worker import ChatWorker
 
 class ChatPanel(QWidget):
-    """Панель чата: управление UI, историей и фоновой генерацией ответов."""
-    history_cleared = pyqtSignal()
+    """Панель чата: управление UI, загрузка истории и фоновая генерация ответов."""
 
     def __init__(self, project_root: Path, ai_engine, parent=None):
         super().__init__(parent)
@@ -28,8 +27,7 @@ class ChatPanel(QWidget):
         self.chat_display.setObjectName("chatDisplay")
         layout.addWidget(self.chat_display, stretch=1)
 
-        # Восстановление сообщений при запуске
-        # Берем последние 100 сообщений
+        # Восстановление сообщений при запуске (последние 100)
         for msg in self.chat_history[-100:]:
             self._append_chat_message(msg["content"], msg["role"] == "user")
 
@@ -54,7 +52,6 @@ class ChatPanel(QWidget):
             return
 
         safe = text.replace(" & ", " &amp; ").replace(" < ", " &lt; ").replace(" > ", " &gt; ").replace("\n", " <br > ")
-
         bg = "#374658" if is_user else "#333333"
         border = "border: 2px solid #003366;" if is_user else ""
         html = f'<span style="display: inline-block; background: {bg}; {border} color: white; padding: 12px 18px; border-radius: 16px; max-width: 75%; font-size: 18px; line-height: 1.6; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">{safe}</span>'
@@ -69,7 +66,6 @@ class ChatPanel(QWidget):
         cursor.insertBlock(block_fmt)
         cursor.insertHtml(html)
 
-        # Автопрокрутка после отрисовки
         QTimer.singleShot(0, lambda: self.chat_display.verticalScrollBar().setValue(self.chat_display.verticalScrollBar().maximum()))
 
     def _send_chat_message(self):
@@ -82,7 +78,7 @@ class ChatPanel(QWidget):
 
         self._append_chat_message(text, is_user=True)
         self.chat_history.append({"role": "user", "content": text})
-        self._save_chat_history()
+        # _save_chat_history удалён: сохранение происходит на стороне AI-ядра
 
         self.chat_input.clear()
         self.chat_input.setEnabled(False)
@@ -104,7 +100,7 @@ class ChatPanel(QWidget):
         if response:
             self._append_chat_message(response, is_user=False)
             self.chat_history.append({"role": "assistant", "content": response})
-            self._save_chat_history()
+            # _save_chat_history удалён: сохранение происходит на стороне AI-ядра
         self._cleanup_chat_worker()
 
     def _on_chat_error(self, error: str):
@@ -124,28 +120,10 @@ class ChatPanel(QWidget):
             self.chat_input.setFocus()
 
     def _load_chat_history(self):
-        """Загрузка истории из config/chat_history.json."""
-        # ИЗМЕНЕНИЕ 2: Переименование файла
+        """Загрузка истории из config/chat_history.json при старте."""
         path = self.project_root / "config" / "chat_history.json"
         if path.exists():
             try:
                 self.chat_history = json.loads(path.read_text(encoding="utf-8"))
             except Exception:
                 self.chat_history = []
-
-    def _save_chat_history(self):
-        """Сохранение истории в config/chat_history.json."""
-        # ИЗМЕНЕНИЕ 2: Переименование файла
-        path = self.project_root / "config" / "chat_history.json"
-        try:
-            path.write_text(json.dumps(self.chat_history, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception:
-            pass
-
-    def clear_history(self):
-        """Полный сброс: UI, локальный JSON и эммит сигнала."""
-        self.chat_history.clear()
-        self._save_chat_history()
-        if self.chat_display:
-            self.chat_display.clear()
-        self.history_cleared.emit()
