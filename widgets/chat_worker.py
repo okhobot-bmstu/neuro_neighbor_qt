@@ -23,7 +23,7 @@ class ChatWorker(QThread):
     def run(self):
         try:
             if not hasattr(self.ai_engine, 'neuro') or not hasattr(self.ai_engine.neuro, 'chat'):
-                self.response_ready.emit("")
+                self.response_ready.emit(" ")
                 return
 
             original_chat = self.ai_engine.neuro.chat
@@ -38,13 +38,18 @@ class ChatWorker(QThread):
             response = ""
             if self._captured_response is not None:
                 raw = str(self._captured_response).strip()
+                # Убираем markdown-блоки кода
                 clean = re.sub(r'```.*?```', '', raw, flags=re.DOTALL).strip()
+                
+                # ИЗМЕНЕНИЕ: собираем ВСЕ подходящие строки, а не только первую
+                lines = []
                 for line in clean.split('\n'):
                     line = line.strip()
                     if line and not line.startswith(('<<', '>>')):
-                        response = line
-                        break
-                response = response or raw[:500]
+                        lines.append(line)
+                
+                # Соединяем все строки в один ответ
+                response = '\n'.join(lines) if lines else raw[:500]
 
             self.response_ready.emit(response)
         except Exception as e:

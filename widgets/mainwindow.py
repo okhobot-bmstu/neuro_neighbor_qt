@@ -2,21 +2,19 @@ import sys
 import os
 import threading
 from pathlib import Path
-
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QMessageBox, QApplication
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QProcess
 from PyQt6.QtGui import QIcon, QPainter, QPixmap, QColor, QPen, QImage
-
 from .chat_panel import ChatPanel
 from .mic_control import MicControl
-
 
 class MainWindow(QMainWindow):
     """Координатор UI: маршрутизация сигналов, управление AI/STT, жизненный цикл."""
     phrase_finished = pyqtSignal()
+    calibration_done = pyqtSignal(bool)
 
     def __init__(self, ai_engine=None, project_root=None):
         super().__init__()
@@ -36,6 +34,7 @@ class MainWindow(QMainWindow):
         self.stop_timeout_timer.setSingleShot(True)
         self.stop_timeout_timer.timeout.connect(self._force_stop_if_idle)
         self.phrase_finished.connect(self._on_phrase_finished)
+        self.calibration_done.connect(self._finish_calibration)
 
         # Патчим STT-коллбэк для эмитации сигнала без изменения src/
         if self.ai_engine and hasattr(self.ai_engine, 'stt'):
@@ -50,6 +49,7 @@ class MainWindow(QMainWindow):
         self.showMaximized()
 
     def _init_ui(self):
+        """Сборка интерфейса: загрузка ассетов, кнопок и панели чата."""
         self.load_asset('settings', 'settings.png')
         central = QWidget()
         self.setCentralWidget(central)
@@ -132,6 +132,7 @@ class MainWindow(QMainWindow):
         return QIcon(p)
 
     def _on_mic_toggled(self, is_active: bool):
+        """Обработка переключения микрофона: запуск/остановка распознавания."""
         self.is_mic_active = is_active
         if is_active:
             self._waiting_for_last_phrase = False
@@ -148,17 +149,20 @@ class MainWindow(QMainWindow):
             except Exception as e: print(f"⚠️ Ошибка AI.{method_name}: {e}")
 
     def _on_phrase_finished(self):
+        """Обработка сигнала окончания фразы: остановка таймера и AI."""
         if self._waiting_for_last_phrase:
             self.stop_timeout_timer.stop()
             self._waiting_for_last_phrase = False
             self._call_ai('stop_recognition')
 
     def _force_stop_if_idle(self):
+        """Принудительная остановка, если фраза не была распознана."""
         if self._waiting_for_last_phrase:
             self._waiting_for_last_phrase = False
             self._call_ai('stop_recognition')
 
     def start_calibration(self):
+        """Запуск процесса калибровки микрофона в отдельном потоке."""
         if not self.ai_engine or not hasattr(self.ai_engine, 'calibrate'): return
         self._is_calibrating = True
         self.calibrate_btn.setEnabled(False)
@@ -167,19 +171,35 @@ class MainWindow(QMainWindow):
         threading.Thread(target=self._run_calibration, daemon=True).start()
 
     def _run_calibration(self):
-        try: self.ai_engine.calibrate(duration=3)
-        except Exception as e: print(f"❌ Ошибка калибровки: {e}")
-        finally: QTimer.singleShot(0, self._finish_calibration)  # Безопасный возврат в UI-поток
+        """Фоновая задача: вызов калибровки и обработка ошибок."""
+        success = True
+        try:
+            self.ai_engine.calibrate(duration=3)
+        except Exception as e:
+            print(f"❌ Ошибка калибровки: {e}")
+            success = False
+        finally:
+            self.calibration_done.emit(success)
 
-    def _finish_calibration(self):
+    def _finish_calibration(self, success: bool):
+        """Завершение калибровки в UI-потоке (вызывается через сигнал)."""
         self._is_calibrating = False
         self.stop_timeout_timer.stop()
         self.calibrate_btn.setEnabled(True)
         self.calibrate_btn.setText("Калибровка")
-        QTimer.singleShot(100, lambda: QMessageBox.information(self, "Калибровка", "Калибровка микрофона успешно завершена."))
+        self._show_calibration_result(success)
+
+    def _show_calibration_result(self, success: bool):
+        """Показ результата калибровки пользователю."""
+        if success:
+            QMessageBox.information(self, "Калибровка", "Калибровка микрофона успешно завершена.")
+        else:
+            QMessageBox.warning(self, "Ошибка калибровки",
+                                "Не удалось настроить микрофон.\n"
+                                "Возможно, устройство не поддерживает частоту дискретизации или занято.")
 
     def open_settings(self):
-        """Открытие окна настроек. WA_DeleteOnClose требует защиты от обращений к удалённому C++ объекту."""
+        """Открытие окна настроек с проверкой на уже открытое окно."""
         if self.settings_dialog is not None:
             try:
                 if self.settings_dialog.isVisible():
@@ -201,14 +221,13 @@ class MainWindow(QMainWindow):
             self.settings_dialog.reset_signal.connect(self._handle_restart)
 
         self.settings_dialog.show()
-        # Задержка 10ms гарантирует, что дерево виджетов полностью построено до поиска кнопок
         QTimer.singleShot(10, self._patch_settings_buttons)
 
     def _patch_settings_buttons(self):
-        """Перенаправление кликов через monkey-patch (обход проблем с Z-order и фокусом)."""
+        """Перенаправление кликов кнопок в настройках на методы MainWindow."""
         if not self.settings_dialog: return
         for btn in self.settings_dialog.findChildren(QPushButton):
-            text = btn.text().replace("&", "").lower()
+            text = btn.text().replace(" & ", " ").lower()
             if "сохранить" in text:
                 try: btn.clicked.disconnect()
                 except Exception: pass
@@ -216,16 +235,19 @@ class MainWindow(QMainWindow):
             elif "очистить историю" in text:
                 original_clear = self.settings_dialog.reset_chat
                 def wrapped_clear():
-                    original_clear()  # Удаляет файл на диске
-                    self.chat_panel.clear_history()  # Очищает UI
+                    original_clear()
+                    self.chat_panel.clear_history()
                     if self.ai_engine and hasattr(self.ai_engine, 'neuro'):
                         if hasattr(self.ai_engine.neuro, 'chat_history'):
                             self.ai_engine.neuro.chat_history.clear()
-                        self._call_ai('load_history')  # Перезагружает пустую историю в память AI
+                        self._call_ai('load_history')
                 btn.clicked.connect(wrapped_clear)
 
     def _on_save_clicked(self):
-        """Сохранение настроек и показ диалога перезапуска."""
+        """Сохранение настроек и показ диалога перезапуска с фокусом на Yes."""
+        if not self.settings_dialog:
+            return
+
         try:
             if hasattr(self.settings_dialog, 'save'):
                 self.settings_dialog.save()
@@ -234,18 +256,22 @@ class MainWindow(QMainWindow):
             return
 
         QApplication.processEvents()
-        msg = QMessageBox()
-        msg.setWindowTitle("Настройки сохранены")
+
+        msg = QMessageBox(self.settings_dialog)
+        msg.setWindowTitle("Сохранение")
         msg.setText("Изменения вступят в силу после перезапуска.\nПерезапустить сейчас?")
         msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        msg.setDefaultButton(QMessageBox.StandardButton.No)
-        msg.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
+        msg.setDefaultButton(QMessageBox.StandardButton.Yes)
         msg.setWindowModality(Qt.WindowModality.ApplicationModal)
-        if msg.exec() == QMessageBox.StandardButton.Yes:
+
+        result = msg.exec()
+
+        if result == QMessageBox.StandardButton.Yes:
             self._handle_restart()
+            return
 
     def _handle_restart(self):
-        """Грейсфул-перезапуск: остановка аудио, запуск нового процесса, выход."""
+        """Грейсфул-перезапуск приложения."""
         if self.settings_dialog:
             self.settings_dialog.close()
             self.settings_dialog = None

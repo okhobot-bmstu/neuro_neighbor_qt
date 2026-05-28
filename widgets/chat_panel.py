@@ -29,6 +29,7 @@ class ChatPanel(QWidget):
         layout.addWidget(self.chat_display, stretch=1)
 
         # Восстановление сообщений при запуске
+        # Берем последние 100 сообщений
         for msg in self.chat_history[-100:]:
             self._append_chat_message(msg["content"], msg["role"] == "user")
 
@@ -52,8 +53,11 @@ class ChatPanel(QWidget):
         if not self.chat_display:
             return
 
-        safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
-        bg = "#0066cc" if is_user else "#333333"
+        safe = text.replace(" & ", " &amp; ").replace(" < ", " &lt; ").replace(" > ", " &gt; ").replace("\n", " <br > ")
+        
+        # ИЗМЕНЕНИЕ 1: Затемнил фон для пользователя (было #0066cc, стало #004488)
+        bg = "#004488" if is_user else "#333333"
+        
         html = f'<span style="display: inline-block; background: {bg}; color: white; padding: 12px 18px; border-radius: 16px; max-width: 75%; font-size: 18px; line-height: 1.6; box-shadow: 0 3px 8px rgba(0,0,0,0.3);">{safe}</span>'
 
         cursor = self.chat_display.textCursor()
@@ -74,7 +78,7 @@ class ChatPanel(QWidget):
         if not self.chat_input or not self.ai_engine or (self.chat_worker and self.chat_worker.isRunning()):
             return
         text = self.chat_input.text().strip()
-        if not text:
+        if not text: 
             return
 
         self._append_chat_message(text, is_user=True)
@@ -107,7 +111,7 @@ class ChatPanel(QWidget):
     def _on_chat_error(self, error: str):
         """Обработка ошибки генерации."""
         if self.chat_display:
-            self.chat_display.append(f'<div style="color:#ff6b6b;margin:4px 0;"> Ошибка: {error}</div>')
+            self.chat_display.append(f'<div style="color:#ff6b6b;margin:4px 0;">Ошибка: {error}</div>')
         self._cleanup_chat_worker()
 
     def _cleanup_chat_worker(self):
@@ -121,8 +125,9 @@ class ChatPanel(QWidget):
             self.chat_input.setFocus()
 
     def _load_chat_history(self):
-        """Загрузка истории из config/chat_session.json."""
-        path = self.project_root / "config" / "chat_session.json"
+        """Загрузка истории из config/chat_history.json."""
+        # ИЗМЕНЕНИЕ 2: Переименование файла
+        path = self.project_root / "config" / "chat_history.json"
         if path.exists():
             try:
                 self.chat_history = json.loads(path.read_text(encoding="utf-8"))
@@ -130,8 +135,9 @@ class ChatPanel(QWidget):
                 self.chat_history = []
 
     def _save_chat_history(self):
-        """Сохранение истории в config/chat_session.json."""
-        path = self.project_root / "config" / "chat_session.json"
+        """Сохранение истории в config/chat_history.json."""
+        # ИЗМЕНЕНИЕ 2: Переименование файла
+        path = self.project_root / "config" / "chat_history.json"
         try:
             path.write_text(json.dumps(self.chat_history, ensure_ascii=False, indent=2), encoding="utf-8")
         except Exception:
