@@ -1,0 +1,1 @@
+# Neuro Neighbor QT Project\n\nNeuro Neighbor QT is a robust, user-friendly application for visualizing and interacting with AI neural network models using Qt.\n\n## Windows Inference\n\nNew dedicated files are available for running inference specifically on Windows environments. Please consult the relevant modules for execution instructions.
