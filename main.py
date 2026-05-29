@@ -8,13 +8,11 @@ from widgets.mainwindow import MainWindow
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="noisereduce")
 warnings.filterwarnings("ignore", category=RuntimeWarning, module="numpy")
 
-# Надёжное определение корня проекта (относительно этого файла)
 PROJECT_ROOT = Path(__file__).resolve().parent
 
+# Инициализация AI-движка: загрузка конфига, проверка методов, обработка ошибок импорта
 def init_ai_engine():
     try:
-        # После pip install -e ai_nn пакет линкуется в site-packages.
-        # Импорт работает стандартно, sys.path модифицировать не нужно.
         from ai_nn import Ai_NN
 
         config_path = PROJECT_ROOT / "config" / "config.json"
@@ -33,12 +31,13 @@ def init_ai_engine():
         print(f"⚠️ Ошибка парсинга config.json: {e}")
         return None
     except ImportError as e:
-        print(f"⚠️ Пакет ai_nn не найден. Установите в editable-режиме:\n   pip install -e ai_nn --no-deps\n   Ошибка: {e}")
+        print(f"️ Пакет ai_nn не найден. Установите в editable-режиме:\n   pip install -e ai_nn --no-deps\n   Ошибка: {e}")
         return None
     except Exception as e:
         print(f"⚠️ Ошибка инициализации AI: {e}")
         return None
 
+# Точка входа приложения: настройка Qt, загрузка стилей, инициализация AI и запуск UI
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Neuro_neighbor")
@@ -57,7 +56,6 @@ def main():
     else:
         print("⚠️ Запуск в UI-режиме (без AI)")
 
-    # Явно передаём корень проекта для корректного поиска assets
     window = MainWindow(ai_engine=ai_engine, project_root=PROJECT_ROOT)
     window.show()
     sys.exit(app.exec())
