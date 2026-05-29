@@ -18,9 +18,6 @@ config/init_prompt.txt
 config/chat_history.json
 
 
-# === Локальные скрипты ===
-
-run.sh
 
 # === IDE и временные файлы ОС ===
 .idea/
